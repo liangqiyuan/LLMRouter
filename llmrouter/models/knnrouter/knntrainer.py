@@ -1,36 +1,42 @@
-# models/graphrouter/trainer.py
-
 import torch
 from llmrouter.models.base_trainer import BaseTrainer
-
+from llmrouter.utils import save_model, load_model
+import os
 
 class KNNRouterTrainer(BaseTrainer):
     """
-    GraphRouterTrainer
+    KNNRouterTrainer
     ------------------
-    Example trainer implementation for GraphRouter.
+    A simple example trainer for KNNRouter.
 
-    Uses a simple supervised learning objective with cross-entropy loss.
+    This version defines its own __init__() method without requiring any external parameters.
+    It sets default attributes internally and can be extended for customized logic.
     """
+    def __init__(self, router, optimizer=None, device="cpu"):
+        super().__init__(router=router, optimizer=optimizer, device=device)
 
-    def train(self, dataloader):
+        self.query_embedding_list = router.query_embedding_list
+        self.model_name_list = router.model_name_list
+
+        project_root = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
+
+        self.ini_model_path = os.path.join(project_root, router.cfg["model_path"]["ini_model_path"])
+        self.save_model_path = os.path.join(project_root, router.cfg["model_path"]["save_model_path"])
+
+        self.model = router.knn_model
+
+        print("[KNNRouterTrainer] Initialized with router.")
+
+    def train(self):
         """
-        Train the GraphRouter for one or multiple epochs.
-
-        Args:
-            dataloader:
-                Iterable of batches for training.
+        Example placeholder training function for KNNRouterTrainer.
         """
-        self.router.train()
-        for step, batch in enumerate(dataloader):
-            batch = self._move_batch_to_device(batch)
+        if os.path.exists(self.ini_model_path) and self.ini_model_path.endswith(".pkl"):
+            self.model = load_model(self.ini_model_path)
 
-            outputs = self.router(batch)
-            loss = self.loss_func(outputs, batch)
+        self.model.fit(self.query_embedding_list, self.model_name_list)
+        save_model(self.model, self.save_model_path)
 
-            self.optimizer.zero_grad()
-            loss.backward()
-            self.optimizer.step()
 
-            if step % 10 == 0:
-                print(f"[GraphRouterTrainer] Step {step} | loss = {loss.item():.4f}")
+
+

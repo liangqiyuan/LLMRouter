@@ -4,23 +4,25 @@ import pickle
 import random
 import numpy as np
 import torch.nn as nn
-from sklearn.neighbors import NearestNeighbors
+import copy
+from sklearn.neighbors import KNeighborsClassifier
 from llmrouter.models.meta_router import MetaRouter
+from llmrouter.utils import load_model, get_longformer_embedding
 
 
 class KNNRouter(MetaRouter):
     """
     KNNRouter
     ----------
-    A router that uses a pre-trained or pre-saved KNN model to select
-    the most similar LLM based on embedding proximity. If no KNN model
-    file is found, it falls back to random selection.
+    A routing module that leverages a K-Nearest Neighbors (KNN) classifier
+    to select the most similar language model based on query embeddings.
 
-    The router inherits from MetaRouter (which includes an nn.Module)
-    for consistent interface, but it does not perform training.
+    The router inherits from MetaRouter for consistent interface design.
+    If no trained KNN model is found at the specified path, it can fall back
+    to random selection.
 
-    YAML format:
-    ------------
+    YAML Configuration Example:
+    ---------------------------
     llm_data:
       GPT4:
         size: "175B"
@@ -36,167 +38,90 @@ class KNNRouter(MetaRouter):
 
     def __init__(self, yaml_path: str):
         """
-        Initialize the KNNRouter.
+        Initialize the KNNRouter and load configuration.
 
         Args:
-            yaml_path (str): Path to YAML config file.
+            yaml_path (str): Path to the YAML configuration file.
+
+        The initialization performs the following steps:
+            1. Loads configuration and metadata from MetaRouter.
+            2. Builds a KNN classifier using the specified hyperparameters.
+            3. Prepares the training embeddings and corresponding model labels.
         """
-        # Keep nn.Module for MetaRouter interface
         dummy_model = nn.Identity()
         super().__init__(model=dummy_model, yaml_path=yaml_path)
 
-        # Core params
-        self.n_neighbors: int = self.config.get("n_neighbors", 1)
-        self.metric: str = self.config.get("metric", "cosine")
-        self.knn_model_path: Optional[str] = self.config.get("knn_model_path")
+        # Initialize KNN classifier with user-defined hyperparameters
+        knn_params = self.cfg["hparam"]
+        self.knn_model = KNeighborsClassifier(**knn_params)
 
-        # Prepare embeddings
-        self.llm_names: List[str] = []
-        self.llm_embs: List[np.ndarray] = []
-        for name, info in self.llm_data.items():
-            emb = info.get("embedding")
-            if emb is not None:
-                self.llm_names.append(name)
-                self.llm_embs.append(np.array(emb, dtype=np.float32))
+        # Select the best-performing model for each query
+        routing_best = self.routing_data_train.loc[
+            self.routing_data_train.groupby("query")["performance"].idxmax()
+        ].reset_index(drop=True)
 
-        if not self.llm_embs:
-            raise ValueError("No valid embeddings found in YAML config.")
-        self.llm_embs = np.vstack(self.llm_embs)
+        # Prepare embedding and label arrays for KNN training
+        query_embedding_id = routing_best["embedding_id"].tolist()
+        self.query_embedding_list = [self.query_embedding_data[i].numpy() for i in query_embedding_id]
+        self.model_name_list = routing_best["model_name"].tolist()
 
-        # Try to load pre-saved KNN model
-        self.model: Optional[NearestNeighbors] = None
-        if self.knn_model_path and os.path.exists(self.knn_model_path):
-            try:
-                with open(self.knn_model_path, "rb") as f:
-                    self.model = pickle.load(f)
-                print(f"✅ Loaded KNN model from {self.knn_model_path}")
-            except Exception as e:
-                print(f"⚠️ Failed to load KNN model: {e}")
-                self.model = None
-        else:
-            print("⚠️ No KNN model file found — router will fallback to random routing.")
-
-        print(f"✅ KNNRouter initialized ({len(self.llm_names)} LLMs loaded).")
-
-    def route_single(self, batch: Optional[Union[np.ndarray, List[float]]] = None) -> Dict[str, Any]:
+    def route_single(self, query: Dict[str, Any]) -> Dict[str, Any]:
         """
-        Route the given query embedding(s) to the best-matching LLM(s).
+        Route a single query using the pre-trained KNN model.
+
+        The method embeds the input query text using Longformer, then predicts
+        the most similar LLM model based on the trained KNN classifier.
 
         Args:
-            batch (np.ndarray | list[float], optional):
-                Query embedding vector or batch (shape [N, dim]).
+            query (dict):
+                A single query dictionary. Must contain the key:
+                    - "query": textual input to be embedded.
 
         Returns:
             dict:
-                {
-                    "query_shape": tuple,
-                    "results": [
-                        {
-                            "model_name": str,
-                            "distance": float,
-                            "model_info": dict
-                        },
-                        ...
-                    ]
-                }
+                Updated query dictionary containing:
+                    - "model_name": predicted model name.
         """
-        if batch is None:
-            raise ValueError("Missing input query embedding for routing.")
+        project_root = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
+        load_model_path = os.path.join(project_root, self.cfg["model_path"]["load_model_path"])
+        self.knn_model = load_model(load_model_path)
 
-        query_emb = np.array(batch, dtype=np.float32)
-        if query_emb.ndim == 1:
-            query_emb = query_emb.reshape(1, -1)
+        # Compute query embedding and predict model
+        query_embedding = [get_longformer_embedding(query["query"]).numpy()]
+        model_name = self.knn_model.predict(query_embedding)[0]
 
-        results: List[Dict[str, Any]] = []
+        # Return updated query with prediction
+        query_output = copy.copy(query)
+        query_output["model_name"] = model_name
+        return query_output
 
-        # Case 1: KNN model available
-        if self.model is not None:
-            distances, indices = self.model.kneighbors(query_emb, n_neighbors=self.n_neighbors)
-            for j in range(len(indices[0])):
-                llm_idx = indices[0][j]
-                llm_name = self.llm_names[llm_idx]
-                dist = float(distances[0][j])
-                info = self.llm_data[llm_name]
-                results.append({
-                    "model_name": llm_name,
-                    "distance": dist,
-                    "model_info": info,
-                })
-            print(f"🔍 Routed to {results[0]['model_name']} (distance={results[0]['distance']:.4f})")
-
-        # Case 2: Fallback (no KNN model)
-        else:
-            random_name = random.choice(self.llm_names)
-            results.append({
-                "model_name": random_name,
-                "distance": float("nan"),
-                "model_info": self.llm_data[random_name],
-            })
-            print(f"🎲 Randomly selected LLM: {random_name}")
-
-        return {
-            "query_shape": query_emb.shape,
-            "results": results,
-        }
-
-    def route_batch(self, batch: Optional[Union[np.ndarray, List[float]]] = None) -> Dict[str, Any]:
+    def route_batch(self, batch: Optional[Any] = None) -> List[Dict[str, Any]]:
         """
-        Route the given query embedding(s) to the best-matching LLM(s).
+        Route a batch of queries using the pre-trained KNN model.
+
+        Each query in the test set is embedded using Longformer, and
+        the trained KNN classifier predicts the most similar model
+        for each query.
 
         Args:
-            batch (np.ndarray | list[float], optional):
-                Query embedding vector or batch (shape [N, dim]).
+            batch (Any, optional):
+                Placeholder argument for compatibility with other router interfaces.
+                Not used in this implementation.
 
         Returns:
-            dict:
-                {
-                    "query_shape": tuple,
-                    "results": [
-                        {
-                            "model_name": str,
-                            "distance": float,
-                            "model_info": dict
-                        },
-                        ...
-                    ]
-                }
+            list of dict:
+                A list of query dictionaries, each updated with:
+                    - "model_name": predicted model name.
         """
-        if batch is None:
-            raise ValueError("Missing input query embedding for routing.")
+        project_root = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
+        load_model_path = os.path.join(project_root, self.cfg["model_path"]["load_model_path"])
+        self.knn_model = load_model(load_model_path)
 
-        query_emb = np.array(batch, dtype=np.float32)
-        if query_emb.ndim == 1:
-            query_emb = query_emb.reshape(1, -1)
+        query_data_output = copy.copy(self.query_data_test)
+        for row in query_data_output:
+            query_embedding = [get_longformer_embedding(row["query"]).numpy()]
+            model_name = self.knn_model.predict(query_embedding)[0]
+            row["model_name"] = model_name
 
-        results: List[Dict[str, Any]] = []
-
-        # Case 1: KNN model available
-        if self.model is not None:
-            distances, indices = self.model.kneighbors(query_emb, n_neighbors=self.n_neighbors)
-            for j in range(len(indices[0])):
-                llm_idx = indices[0][j]
-                llm_name = self.llm_names[llm_idx]
-                dist = float(distances[0][j])
-                info = self.llm_data[llm_name]
-                results.append({
-                    "model_name": llm_name,
-                    "distance": dist,
-                    "model_info": info,
-                })
-            print(f"🔍 Routed to {results[0]['model_name']} (distance={results[0]['distance']:.4f})")
-
-        # Case 2: Fallback (no KNN model)
-        else:
-            random_name = random.choice(self.llm_names)
-            results.append({
-                "model_name": random_name,
-                "distance": float("nan"),
-                "model_info": self.llm_data[random_name],
-            })
-            print(f"🎲 Randomly selected LLM: {random_name}")
-
-        return {
-            "query_shape": query_emb.shape,
-            "results": results,
-        }
+        return query_data_output
 

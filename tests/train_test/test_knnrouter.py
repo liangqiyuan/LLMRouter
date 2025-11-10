@@ -1,6 +1,7 @@
 import argparse
 import os
 from llmrouter.models import KNNRouter
+from llmrouter.models import KNNRouterTrainer
 
 
 def main():
@@ -25,14 +26,13 @@ def main():
 
     # Initialize the router
     print(f"📄 Using YAML file: {args.yaml_path}")
-    llm = KNNRouter(args.yaml_path)
+    router = KNNRouter(args.yaml_path)
     print("✅ KNNRouter initialized successfully!")
 
-    # Run inference
-    result = llm.route()
-    print("\n🤖 KNNRouter output:")
-    for key, value in result.items():
-        print(f"  {key}: {value}")
+    # Run train
+    trainer = KNNRouterTrainer(router=router, device="cpu")
+    trainer.train()
+
 
 
 if __name__ == "__main__":
