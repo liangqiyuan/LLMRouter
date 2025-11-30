@@ -12,6 +12,9 @@ from .svmrouter import SVMRouterTrainer
 from .mlprouter import MLPRouter
 from .mlprouter import MLPTrainer
 
+from .knnmultiroundrouter import KNNMultiRoundRouter
+from .knnmultiroundrouter import KNNMultiRoundRouterTrainer
+
 
 __all__ = [
     "MetaRouter",
@@ -24,4 +27,6 @@ __all__ = [
     "SVMRouterTrainer",
     "MLPRouter",
     "MLPTrainer",
+    "KNNMultiRoundRouter",
+    "KNNMultiRoundRouterTrainer",
 ]
