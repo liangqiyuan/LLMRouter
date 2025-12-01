@@ -4,7 +4,7 @@ import torch.nn as nn
 import copy
 from sklearn.neighbors import KNeighborsClassifier
 from llmrouter.models.meta_router import MetaRouter
-from llmrouter.utils import load_model, get_longformer_embedding, call_api
+from llmrouter.utils import load_model, get_longformer_embedding, call_api, generate_task_query
 
 # Optional imports for local LLM inference
 try:
@@ -132,15 +132,15 @@ Let's think step by step.
 
     def route_single(self, query: Dict[str, Any]) -> Dict[str, Any]:
         """
-        Route a single query (sub-query) using the pre-trained KNN model.
+        Route a single query (sub-query) using the pre-trained KNN model and execute it.
 
-        The method embeds the input query text using Longformer, then predicts
-        the most similar LLM model based on the trained KNN classifier.
+        The method embeds the input query text using Longformer, predicts the most similar
+        LLM model based on the trained KNN classifier, then executes the query using that model.
 
         Args:
             query (dict):
                 A single query dictionary. Must contain the key:
-                    - "query": textual input (sub-query) to be embedded.
+                    - "query": textual input (sub-query) to be embedded and executed.
                 Optional keys:
                     - "original_query": The original query before decomposition
                     - "sub_query_index": Index of this sub-query in the sequence
@@ -148,7 +148,12 @@ Let's think step by step.
         Returns:
             dict:
                 Updated query dictionary containing:
-                    - "model_name": predicted model name.
+                    - "query": original query text
+                    - "model_name": predicted model name
+                    - "response": LLM response text
+                    - "prompt_tokens": number of prompt tokens used
+                    - "completion_tokens": number of completion tokens used
+                    - "success": whether the API call succeeded
         """
         # Load KNN model if not already loaded
         if not hasattr(self, 'knn_model_path'):
@@ -162,12 +167,19 @@ Let's think step by step.
         query_embedding = [get_longformer_embedding(query_text).numpy()]
         model_name = self.knn_model.predict(query_embedding)[0]
 
-        # Return updated query with prediction
+        # Execute the query using the routed model
+        execution_result = self._execute_sub_query(query_text, model_name)
+
+        # Return updated query with prediction and execution results
         query_output = copy.copy(query)
         query_output["model_name"] = model_name
+        query_output["response"] = execution_result.get("response", "")
+        query_output["prompt_tokens"] = execution_result.get("prompt_tokens", 0)
+        query_output["completion_tokens"] = execution_result.get("completion_tokens", 0)
+        query_output["success"] = execution_result.get("success", False)
         return query_output
 
-    def route_batch(self, batch: Optional[Any] = None) -> List[Dict[str, Any]]:
+    def route_batch(self, batch: Optional[Any] = None, task_name: Optional[str] = None) -> List[Dict[str, Any]]:
         """
         Route a batch of queries (sub-queries) using the pre-trained KNN model.
 
@@ -177,13 +189,22 @@ Let's think step by step.
 
         Args:
             batch (Any, optional):
-                Placeholder argument for compatibility with other router interfaces.
-                If None, uses self.query_data_test from loaded data.
+                If provided, routes the provided batch. If None, uses self.query_data_test from loaded data.
+            task_name (str, optional):
+                Task name for prompt formatting (e.g., "mmlu", "gsm8k", "commonsense_qa").
+                If provided, queries will be formatted using task-specific prompts before routing.
+                If None, queries are routed as-is. Can also be extracted from each row's 'task_name' field.
 
         Returns:
             list of dict:
                 A list of query dictionaries, each updated with:
-                    - "model_name": predicted model name.
+                    - "query": original query text (preserved)
+                    - "formatted_query": formatted query if task_name was provided (optional)
+                    - "model_name": predicted model name
+                    - "response": LLM response text
+                    - "prompt_tokens": number of prompt tokens used
+                    - "completion_tokens": number of completion tokens used
+                    - "success": whether the API call succeeded
         """
         # Load KNN model if not already loaded
         if not hasattr(self, 'knn_model_path'):
@@ -192,12 +213,62 @@ Let's think step by step.
         
         self.knn_model = load_model(self.knn_model_path)
 
-        query_data_output = copy.copy(self.query_data_test)
-        for row in query_data_output:
-            query_text = row.get("query", "")
-            query_embedding = [get_longformer_embedding(query_text).numpy()]
+        # Determine which data to use
+        if batch is not None:
+            query_data = batch if isinstance(batch, list) else [batch]
+        else:
+            if hasattr(self, "query_data_test") and self.query_data_test is not None:
+                query_data = copy.copy(self.query_data_test)
+            else:
+                print("Warning: No batch provided and no test data available for batch routing.")
+                return []
+
+        query_data_output = []
+        for row in query_data:
+            # Handle both dict and non-dict inputs
+            if isinstance(row, dict):
+                row_copy = copy.copy(row)
+                original_query = row_copy.get("query", "")
+                # Use task_name from row if available, otherwise use parameter
+                row_task_name = row_copy.get("task_name", task_name)
+            else:
+                row_copy = {"query": str(row)}
+                original_query = str(row)
+                row_task_name = task_name
+
+            # Format query if task_name is provided
+            if row_task_name:
+                try:
+                    # Prepare sample_data dict for generate_task_query
+                    sample_data = {
+                        "query": original_query,
+                        "choices": row_copy.get("choices", None) if isinstance(row_copy, dict) else None
+                    }
+                    formatted_query = generate_task_query(row_task_name, sample_data)
+                    row_copy["formatted_query"] = formatted_query
+                    query_text_for_routing = formatted_query
+                except (ValueError, KeyError) as e:
+                    # If formatting fails, fall back to original query
+                    print(f"Warning: Failed to format query with task '{row_task_name}': {e}. Using original query.")
+                    query_text_for_routing = original_query
+            else:
+                query_text_for_routing = original_query
+
+            # Route the query (using formatted query if available)
+            query_embedding = [get_longformer_embedding(query_text_for_routing).numpy()]
             model_name = self.knn_model.predict(query_embedding)[0]
-            row["model_name"] = model_name
+            
+            # Execute the query using the routed model
+            execution_result = self._execute_sub_query(query_text_for_routing, model_name)
+
+            # Update row with routing and execution results
+            row_copy["model_name"] = model_name
+            row_copy["response"] = execution_result.get("response", "")
+            row_copy["prompt_tokens"] = execution_result.get("prompt_tokens", 0)
+            row_copy["completion_tokens"] = execution_result.get("completion_tokens", 0)
+            row_copy["success"] = execution_result.get("success", False)
+            
+            query_data_output.append(row_copy)
 
         return query_data_output
 

@@ -4,7 +4,7 @@ import torch.nn as nn
 import copy
 import re
 from llmrouter.models.meta_router import MetaRouter
-from llmrouter.utils import call_api
+from llmrouter.utils import call_api, generate_task_query
 
 # Optional imports for local LLM inference
 try:
@@ -161,20 +161,25 @@ Focus entirely on maximizing effectiveness and providing the most accurate and r
 
     def route_single(self, query: Dict[str, Any]) -> Dict[str, Any]:
         """
-        Route a single query (sub-query) using LLM-based reasoning.
+        Route a single query (sub-query) using LLM-based reasoning and execute it.
         
-        Note: This method is kept for interface compatibility, but for LLM routing,
-        decomposition and routing happen together in _decompose_and_route().
+        Note: This method routes a single query. For full multi-round pipeline with
+        decomposition, use answer_query() instead.
 
         Args:
             query (dict):
                 A single query dictionary. Must contain the key:
-                    - "query": textual input (sub-query) to be routed.
+                    - "query": textual input (sub-query) to be routed and executed.
 
         Returns:
             dict:
                 Updated query dictionary containing:
-                    - "model_name": predicted model name.
+                    - "query": original query text
+                    - "model_name": predicted model name
+                    - "response": LLM response text
+                    - "prompt_tokens": number of prompt tokens used
+                    - "completion_tokens": number of completion tokens used
+                    - "success": whether the API call succeeded
         """
         # For single query routing, we still need to use LLM to decide
         # This is a simplified version that routes a single sub-query
@@ -189,49 +194,94 @@ Output only the full name of the selected model. Do not include any other text."
         
         model_name = self._call_llm_for_routing(routing_prompt)
         
+        # Execute the query using the routed model
+        execution_result = self._execute_sub_query(query_text, model_name)
+        
         query_output = copy.copy(query)
         query_output["model_name"] = model_name
+        query_output["response"] = execution_result.get("response", "")
+        query_output["prompt_tokens"] = execution_result.get("prompt_tokens", 0)
+        query_output["completion_tokens"] = execution_result.get("completion_tokens", 0)
+        query_output["success"] = execution_result.get("success", False)
         return query_output
 
-    def route_batch(self, batch: Optional[Any] = None) -> List[Dict[str, Any]]:
+    def route_batch(self, batch: Optional[Any] = None, task_name: Optional[str] = None) -> List[Dict[str, Any]]:
         """
         Route a batch of queries (sub-queries) using LLM-based reasoning.
 
         Args:
             batch (Any, optional):
-                If provided, routes the batch. If None, uses self.query_data_test from loaded data.
+                If provided, routes the provided batch. If None, uses self.query_data_test from loaded data.
+            task_name (str, optional):
+                Task name for prompt formatting (e.g., "mmlu", "gsm8k", "commonsense_qa").
+                If provided, queries will be formatted using task-specific prompts before routing.
+                If None, queries are routed as-is. Can also be extracted from each row's 'task_name' field.
 
         Returns:
             list of dict:
                 A list of query dictionaries, each updated with:
-                    - "model_name": predicted model name.
+                    - "query": original query text (preserved)
+                    - "formatted_query": formatted query if task_name was provided (optional)
+                    - "model_name": predicted model name
+                    - "response": LLM response text
+                    - "prompt_tokens": number of prompt tokens used
+                    - "completion_tokens": number of completion tokens used
+                    - "success": whether the API call succeeded
         """
+        # Determine which data to use
         if batch is not None:
-            # Route the provided batch
-            query_data_output = []
-            for item in batch:
-                if isinstance(item, dict):
-                    query_text = item.get("query", "")
-                else:
-                    query_text = str(item)
-                routing_result = self.route_single({"query": query_text})
-                output_item = copy.copy(item) if isinstance(item, dict) else {"query": query_text}
-                if isinstance(output_item, dict):
-                    output_item["model_name"] = routing_result["model_name"]
-                query_data_output.append(output_item)
-            return query_data_output
-        
-        # Use test data if available
-        if hasattr(self, "query_data_test") and self.query_data_test is not None:
-            query_data_output = copy.copy(self.query_data_test)
-            for row in query_data_output:
-                routing_result = self.route_single({"query": row.get("query", "")})
-                row["model_name"] = routing_result["model_name"]
-            return query_data_output
+            query_data = batch if isinstance(batch, list) else [batch]
         else:
-            # No test data available
-            print("Warning: No test data available for batch routing.")
-            return []
+            if hasattr(self, "query_data_test") and self.query_data_test is not None:
+                query_data = copy.copy(self.query_data_test)
+            else:
+                print("Warning: No batch provided and no test data available for batch routing.")
+                return []
+
+        query_data_output = []
+        for row in query_data:
+            # Handle both dict and non-dict inputs
+            if isinstance(row, dict):
+                row_copy = copy.copy(row)
+                original_query = row_copy.get("query", "")
+                # Use task_name from row if available, otherwise use parameter
+                row_task_name = row_copy.get("task_name", task_name)
+            else:
+                row_copy = {"query": str(row)}
+                original_query = str(row)
+                row_task_name = task_name
+
+            # Format query if task_name is provided
+            if row_task_name:
+                try:
+                    # Prepare sample_data dict for generate_task_query
+                    sample_data = {
+                        "query": original_query,
+                        "choices": row_copy.get("choices", None) if isinstance(row_copy, dict) else None
+                    }
+                    formatted_query = generate_task_query(row_task_name, sample_data)
+                    row_copy["formatted_query"] = formatted_query
+                    query_text_for_routing = formatted_query
+                except (ValueError, KeyError) as e:
+                    # If formatting fails, fall back to original query
+                    print(f"Warning: Failed to format query with task '{row_task_name}': {e}. Using original query.")
+                    query_text_for_routing = original_query
+            else:
+                query_text_for_routing = original_query
+
+            # Route and execute the query
+            routing_result = self.route_single({"query": query_text_for_routing})
+            
+            # Update row with routing and execution results
+            row_copy["model_name"] = routing_result.get("model_name", "")
+            row_copy["response"] = routing_result.get("response", "")
+            row_copy["prompt_tokens"] = routing_result.get("prompt_tokens", 0)
+            row_copy["completion_tokens"] = routing_result.get("completion_tokens", 0)
+            row_copy["success"] = routing_result.get("success", False)
+            
+            query_data_output.append(row_copy)
+
+        return query_data_output
 
     def _initialize_local_llm(self):
         """Initialize local LLM for decomposition+routing and aggregation if not already initialized."""
