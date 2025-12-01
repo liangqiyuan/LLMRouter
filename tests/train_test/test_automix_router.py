@@ -1,28 +1,11 @@
 import argparse
 import os
 
-import pandas as pd
-
-from llmrouter.models.Automix import (
-    AutomixModel,
-    AutomixRouter,
-    AutomixRouterTrainer,
-    POMDP,
-    SelfConsistency,
-    Threshold,
+from llmrouter.models.Automix.main_automix import (
+    load_config,
+    train_and_evaluate,
+    convert_default_data,
 )
-from llmrouter.models.Automix.main_automix import load_config
-
-
-def build_method(name: str, num_bins: int):
-    mapping = {
-        "POMDP": POMDP,
-        "Threshold": Threshold,
-        "SelfConsistency": SelfConsistency,
-    }
-    if name not in mapping:
-        raise ValueError(f"Unsupported Automix routing method: {name}")
-    return mapping[name](num_bins=num_bins)
 
 
 def main():
@@ -54,24 +37,18 @@ def main():
     if not os.path.isabs(data_path):
         data_path = os.path.join(project_root, data_path)
 
-    data = pd.read_json(data_path, lines=True, orient="records")
-    train_df = data[data["split"] == "train"].copy()
+    if not os.path.exists(data_path):
+        print("⚠️ Automix data not found. Converting default data...")
+        new_path = convert_default_data(config)
+        cfg["data_path"] = new_path
+        data_path = new_path
+        print(f"✅ Converted default data to: {data_path}")
 
-    method = build_method(cfg["routing_method"], cfg["num_bins"])
-    model = AutomixModel(
-        method=method,
-        slm_column=cfg["columns"]["slm"],
-        llm_column=cfg["columns"]["llm"],
-        verifier_column=cfg["columns"]["verifier"],
-        costs=[cfg["costs"]["small_model"], cfg["costs"]["large_model"]],
-        verifier_cost=cfg["costs"]["verifier"],
-        verbose=cfg["training"]["verbose"],
-    )
-    model.train_routing(train_df)
-    router = AutomixRouter(model=model)
-
-    trainer = AutomixRouterTrainer(router=router, device="cpu")
-    trainer.train_on_dataframe(train_df)
+    print("\n🚀 Starting Automix router training and evaluation...")
+    results = train_and_evaluate(config)
+    if results is None:
+        raise RuntimeError("Automix training did not complete successfully.")
+    print("\n✅ Automix router train_test completed successfully!")
 
 
 if __name__ == "__main__":

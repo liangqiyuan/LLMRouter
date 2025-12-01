@@ -10,7 +10,7 @@ from llmrouter.models.Automix import (
     SelfConsistency,
     Threshold,
 )
-from llmrouter.models.Automix.main_automix import load_config
+from llmrouter.models.Automix.main_automix import load_config, convert_default_data
 
 
 def build_method(name: str, num_bins: int):
@@ -52,6 +52,13 @@ def main():
     data_path = cfg["data_path"]
     if not os.path.isabs(data_path):
         data_path = os.path.join(project_root, data_path)
+
+    if not os.path.exists(data_path):
+        print("⚠️ Automix data not found. Converting default data...")
+        new_path = convert_default_data(config)
+        cfg["data_path"] = new_path
+        data_path = new_path
+        print(f"✅ Converted default data to: {data_path}")
 
     df = pd.read_json(data_path, lines=True, orient="records")
     train_df = df[df["split"] == "train"].copy()
