@@ -5,9 +5,9 @@ import torch.nn as nn
 from vllm import LLM, SamplingParams
 from transformers import AutoTokenizer
 
-from llmrouter.models.Router_R1.prompt_pool import *
+from llmrouter.models.router_r1.prompt_pool import *
 from llmrouter.models.meta_router import MetaRouter
-from llmrouter.models.Router_R1.route_service import access_routing_pool
+from llmrouter.models.router_r1.route_service import access_routing_pool
 
 
 
