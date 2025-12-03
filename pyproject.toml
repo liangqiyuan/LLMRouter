@@ -1,0 +1,52 @@
+[build-system]
+requires = ["setuptools>=61", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "llmrouter"                # The name used when installing via pip
+version = "0.1.0"
+description = "A unified framework for LLM routing and evaluation."
+readme = "README.md"
+requires-python = ">=3.9"
+license = { file = "LICENSE" }
+
+authors = [
+  { name = "Haozhen Zhang", email = "your_email@example.com" }
+]
+
+# Add project dependencies here. They can be filled later based on actual imports.
+dependencies = [
+  # "torch>=2.0",
+  # "transformers>=4.40",
+  # "numpy>=1.21",
+  # "pandas>=1.5",
+  # "scikit-learn>=1.2",
+  # "pyyaml>=6.0",
+  # "tqdm>=4.65",
+]
+
+classifiers = [
+  "Programming Language :: Python :: 3",
+  "License :: OSI Approved :: MIT License",
+  "Operating System :: OS Independent",
+]
+
+[project.urls]
+"Homepage" = "https://github.com/yourname/LLMRouter"
+"Source"   = "https://github.com/yourname/LLMRouter"
+
+[project.scripts]
+# Define command-line entry points here.
+# Uncomment if the target module has a `main()` function.
+# Example:
+# "llmrouter-router" = "llmrouter.cli.router_main:main"
+# "llmrouter-chat"   = "llmrouter.cli.router_chat:main"
+
+[tool.setuptools]
+# Enable including package data (YAML configs, JSON files, etc.)
+# For finer control, provide a MANIFEST.in file.
+include-package-data = true
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["llmrouter*"]
