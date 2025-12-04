@@ -19,8 +19,7 @@
 
 1. 🚀 *Smart Routing*: Automatically routes queries to the optimal LLM based on task complexity, cost, and performance requirements.
 2. 📊 *Multiple Router Models*: Support for **over 15 routing models**, including KNN, SVM, MLP, Matrix Factorization, Elo Rating, Graph-based routers, BERT-based routers, Hybrid probabilistic routers, transformed-score routers, multi-round routers, and many additional advanced strategies.
-3. 🔄 *Multi-Round Routing*: Specialized routers for handling complex multi-turn conversations with context awareness.
-4. 🛠️ *Unified CLI*: Complete command-line interface for training, inference, and interactive chat with Gradio-based UI.
+3. 🛠️ *Unified CLI*: Complete command-line interface for training, inference, and interactive chat with Gradio-based UI.
 
 ## Supported Routers
 
