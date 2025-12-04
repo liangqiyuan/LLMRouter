@@ -18,7 +18,7 @@
 **LLMRouter** is an intelligent routing system designed to optimize LLM inference by dynamically selecting the most suitable model for each query. To achieve intelligent routing, it defines:
 
 1. 🚀 *Smart Routing*: Automatically routes queries to the optimal LLM based on task complexity, cost, and performance requirements.
-2. 📊 *Multiple Router Models*: Support for KNN, SVM, MLP, Matrix Factorization, Elo Rating, Graph-based, and more advanced routing strategies.
+2. 📊 *Multiple Router Models*: Support for **over 15 routing models**, including KNN, SVM, MLP, Matrix Factorization, Elo Rating, Graph-based routers, BERT-based routers, Hybrid probabilistic routers, transformed-score routers, multi-round routers, and many additional advanced strategies.
 3. 🔄 *Multi-Round Routing*: Specialized routers for handling complex multi-turn conversations with context awareness.
 4. 🛠️ *Unified CLI*: Complete command-line interface for training, inference, and interactive chat with Gradio-based UI.
 
@@ -52,19 +52,6 @@ llmrouter train --router mlprouter --config configs/model_config_train/mlprouter
 # Train MF router quietly
 llmrouter train --router mfrouter --config configs/model_config_train/mfrouter.yaml --quiet
 ```
-
-Supported routers for training:
-- `knnrouter`: K-Nearest Neighbors Router
-- `svmrouter`: Support Vector Machine Router
-- `mlprouter`: Multi-Layer Perceptron Router
-- `mfrouter`: Matrix Factorization Router
-- `elorouter`: Elo Rating Router
-- `dcrouter`: Divide-and-Conquer Router
-- `automix`: Automix Router
-- `hybrid_llm`: Hybrid LLM Router
-- `graphrouter`: Graph Router
-- `causallm_router`: Causal Language Model Router
-- `knnmultiroundrouter`: KNN Multi-Round Router
 
 ### Running Inference
 
