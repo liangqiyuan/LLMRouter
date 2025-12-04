@@ -1,5 +1,5 @@
 <div style="text-align:center;">
-    <img src="assets/llmrouter.png" style="width: 50%; height: auto;">
+    <img src="assets/llmrouter.png" style="width: 100%; height: auto;">
 </div>
 
 
