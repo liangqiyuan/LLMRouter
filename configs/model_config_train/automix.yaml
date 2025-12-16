@@ -36,7 +36,6 @@ hparam:
   verbose: true                   # Whether to print verbose output
   cost_constraint: null           # Optional (min_cost, max_cost) tuple
   num_inference_samples: 2        # Number of samples for inference demonstration
-  max_samples_for_testing: 10   # Limit data size for quick testing (set to null for full dataset)
   max_workers: 1                  # Number of parallel workers for API calls (increase for faster processing)
 
 

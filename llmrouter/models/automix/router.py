@@ -133,22 +133,6 @@ class AutomixRouter(MetaRouter):
         train_df = pd.read_json(train_path, lines=True, orient="records")
         test_df = pd.read_json(test_path, lines=True, orient="records")
 
-        # Limit data size for testing if specified
-        max_samples = hparam.get("max_samples_for_testing")
-        if max_samples is not None and max_samples > 0:
-            print(f"  ⚠️  Limiting data for testing: max_samples={max_samples}")
-            # Limit train and test proportionally
-            train_ratio = len(train_df) / (len(train_df) + len(test_df)) if (len(train_df) + len(test_df)) > 0 else 0.5
-            train_limit = int(max_samples * train_ratio)
-            test_limit = max_samples - train_limit
-            
-            if len(train_df) > train_limit:
-                train_df = train_df.head(train_limit).copy()
-                print(f"  Limited training data to {train_limit} samples")
-            if len(test_df) > test_limit:
-                test_df = test_df.head(test_limit).copy()
-                print(f"  Limited test data to {test_limit} samples")
-
         # Add split column if not present
         if "split" not in train_df.columns:
             train_df["split"] = "train"
