@@ -38,6 +38,270 @@ import torch
 import numpy as np
 
 
+# Minimal, focused CSS for a clean chat interface
+CUSTOM_CSS = """
+:root {
+    --bg: #0d1117;
+    --surface: #161b22;
+    --border: #30363d;
+    --text: #e6edf3;
+    --text-dim: #7d8590;
+    --accent: #58a6ff;
+    --accent-dim: rgba(88, 166, 255, 0.15);
+}
+
+.gradio-container {
+    max-width: 100% !important;
+    width: 100% !important;
+    padding: 0 24px !important;
+    background: var(--bg) !important;
+}
+
+/* Compact header bar */
+.top-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 0;
+    margin-bottom: 16px;
+    border-bottom: 1px solid var(--border);
+}
+
+.top-bar h1 {
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: var(--text);
+    margin: 0;
+}
+
+.status-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: var(--accent-dim);
+    border: 1px solid rgba(88, 166, 255, 0.3);
+    border-radius: 16px;
+    padding: 4px 12px;
+    font-size: 0.75rem;
+    color: var(--accent);
+}
+
+.status-pill::before {
+    content: '';
+    width: 6px;
+    height: 6px;
+    background: #3fb950;
+    border-radius: 50%;
+}
+
+/* Chat area */
+.main-chat .chatbot {
+    background: var(--surface) !important;
+    border: 1px solid var(--border) !important;
+    border-radius: 12px !important;
+    min-height: 560px !important;
+}
+
+/* Kill ALL borders, lines, separators */
+.main-chat .chatbot * {
+    border-left: none !important;
+    border-right: none !important;
+    border-top: none !important;
+    border-bottom: none !important;
+}
+
+.main-chat .chatbot hr { display: none !important; }
+
+/* Message bubbles - compact */
+.main-chat .chatbot .message {
+    padding: 4px 10px !important;
+    margin: 0 !important;
+    border-radius: 4px !important;
+    font-size: 0.88rem !important;
+    line-height: 1.35 !important;
+    min-height: unset !important;
+}
+
+/* Message content wrapper - remove internal padding */
+.main-chat .chatbot .message-wrap,
+.main-chat .chatbot .bubble-wrap {
+    padding: 0 !important;
+    margin: 0 !important;
+    gap: 0 !important;
+}
+
+/* Prose content - Gradio applies this for markdown rendering */
+.main-chat .chatbot .message .prose,
+.main-chat .chatbot .message .md {
+    padding: 0 !important;
+    margin: 0 !important;
+}
+
+/* Remove any flex gaps inside messages */
+.main-chat .chatbot .message > *,
+.main-chat .chatbot .message-bubble {
+    padding: 0 !important;
+    margin: 0 !important;
+}
+
+.main-chat .chatbot .user.message { 
+    background: var(--accent) !important;
+}
+
+.main-chat .chatbot .bot.message { 
+    background: #21262d !important;
+}
+
+/* Row containers */
+.main-chat .chatbot .message-row {
+    padding: 2px 8px !important;
+    margin: 0 !important;
+    gap: 0 !important;
+}
+
+/* Bot/User row containers */
+.main-chat .chatbot .bot-row,
+.main-chat .chatbot .user-row {
+    padding: 0 !important;
+    margin: 0 !important;
+    gap: 0 !important;
+}
+
+/* Avatar - hide or minimize */
+.main-chat .chatbot .avatar-container {
+    display: none !important;
+}
+
+/* Wrapper spacing */
+.main-chat .chatbot .wrap {
+    padding: 6px !important;
+    gap: 1px !important;
+}
+
+/* Input area */
+.input-row textarea {
+    background: var(--surface) !important;
+    border: 1px solid var(--border) !important;
+    border-radius: 8px !important;
+    color: var(--text) !important;
+    font-size: 0.9rem !important;
+}
+
+.input-row textarea:focus {
+    border-color: var(--accent) !important;
+    box-shadow: none !important;
+}
+
+.input-row button.primary {
+    background: var(--accent) !important;
+    border: none !important;
+    border-radius: 8px !important;
+}
+
+/* Side panel - compact and unobtrusive */
+.side-panel {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 16px;
+}
+
+.side-panel .info-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 0;
+    border-bottom: 1px solid var(--border);
+    font-size: 0.8rem;
+}
+
+.side-panel .info-row:last-child { border-bottom: none; }
+
+.side-panel .info-label {
+    color: var(--text-dim);
+}
+
+.side-panel .info-value {
+    color: var(--text);
+    font-weight: 500;
+}
+
+/* Compact controls */
+.controls-section {
+    margin-top: 16px;
+    padding-top: 16px;
+    border-top: 1px solid var(--border);
+}
+
+.controls-section label span {
+    font-size: 0.8rem !important;
+    color: var(--text-dim) !important;
+}
+
+.controls-section input[type="range"] {
+    accent-color: var(--accent);
+}
+
+/* Small action buttons */
+.action-btns button {
+    background: transparent !important;
+    border: 1px solid var(--border) !important;
+    border-radius: 6px !important;
+    color: var(--text-dim) !important;
+    font-size: 0.75rem !important;
+    padding: 6px 12px !important;
+}
+
+.action-btns button:hover {
+    border-color: var(--accent) !important;
+    color: var(--accent) !important;
+}
+
+/* Hide unnecessary chrome */
+.gradio-container footer { display: none !important; }
+label .info { display: none !important; }
+
+/* Full width layout */
+.gradio-container > .main { max-width: 100% !important; }
+.gradio-container .contain { max-width: 100% !important; }
+#component-0 { max-width: 100% !important; }
+.gap { width: 100% !important; }
+
+/* Remove vertical thread / timeline line */
+.main-chat .chatbot .message-row::before,
+.main-chat .chatbot .bot-row::before,
+.main-chat .chatbot .user-row::before {
+    display: none !important;
+    content: none !important;
+}
+
+/* Kill any leftover left borders explicitly */
+.main-chat .chatbot .message-row,
+.main-chat .chatbot .bot-row,
+.main-chat .chatbot .user-row {
+    border-left: none !important;
+    background-image: none !important;
+}
+
+/* Remove hidden vertical spacing Gradio keeps */
+.main-chat .chatbot .wrap {
+    padding-top: 0 !important;
+    padding-bottom: 0 !important;
+}
+
+/* Fully collapse message rows */
+.main-chat .chatbot .message-row {
+    min-height: unset !important;
+}
+
+/* Prevent invisible spacer divs */
+.main-chat .chatbot .spacer {
+    display: none !important;
+}
+
+"""
+
+
 def _safe_unlink(path: str) -> None:
     try:
         os.unlink(path)
@@ -458,9 +722,158 @@ def predict(
         return f"Error: {str(e)}\n{traceback.format_exc()}"
 
 
+def create_interface(router_instance, router_name: str, args):
+    """Create a minimal, focused chat interface."""
+    
+    # Get LLM count for display
+    llm_count = 0
+    if hasattr(router_instance, 'llm_data') and router_instance.llm_data:
+        llm_count = len(router_instance.llm_data)
+    
+    def predict_with_router(message, history, temperature, mode, top_k):
+        return predict(message, history, router_instance, router_name, temperature, mode, top_k)
+    
+    with gr.Blocks(css=CUSTOM_CSS, theme=gr.themes.Base(), title="LLMRouter") as demo:
+        
+        # Minimal top bar
+        gr.HTML(f"""
+            <div class="top-bar">
+                <h1>LLMRouter</h1>
+                <span class="status-pill">{router_name}</span>
+            </div>
+        """)
+        
+        with gr.Row():
+            # Main chat area - takes most space
+            with gr.Column(scale=4, elem_classes=["main-chat"]):
+                chatbot = gr.Chatbot(
+                    height=560,
+                    show_label=False,
+                    bubble_full_width=False,
+                )
+                
+                with gr.Row(elem_classes=["input-row"]):
+                    msg = gr.Textbox(
+                        placeholder="Type a message...",
+                        show_label=False,
+                        container=False,
+                        scale=5,
+                    )
+                    submit_btn = gr.Button("Send", variant="primary", scale=1)
+                
+                with gr.Row(elem_classes=["action-btns"]):
+                    clear_btn = gr.Button("Clear", size="sm")
+                    retry_btn = gr.Button("Retry", size="sm")
+                    undo_btn = gr.Button("Undo", size="sm")
+            
+            # Compact side panel
+            with gr.Column(scale=1, min_width=200):
+                gr.HTML(f"""
+                    <div class="side-panel">
+                        <div class="info-row">
+                            <span class="info-label">Router</span>
+                            <span class="info-value">{router_name}</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="info-label">Models</span>
+                            <span class="info-value">{llm_count}</span>
+                        </div>
+                    </div>
+                """)
+                
+                with gr.Column(elem_classes=["controls-section"]):
+                    mode = gr.Radio(
+                        label="Mode",
+                        choices=["current_only", "full_context", "retrieval"],
+                        value=args.mode,
+                    )
+                    temperature = gr.Slider(
+                        label="Temperature",
+                        minimum=0,
+                        maximum=2,
+                        value=args.temp,
+                        step=0.1,
+                    )
+                    top_k = gr.Slider(
+                        label="Top-K",
+                        minimum=1,
+                        maximum=10,
+                        value=args.top_k,
+                        step=1,
+                        visible=(args.mode == "retrieval"),
+                    )
+        
+        # Event handlers - show user message immediately, then stream response
+        def user_message(message, chat_history):
+            """Add user message immediately and clear input."""
+            if not message.strip():
+                return "", chat_history
+            return "", chat_history + [[message, None]]
+        
+        def bot_response(chat_history, temperature, mode, top_k):
+            """Stream the bot response character by character."""
+            if not chat_history or chat_history[-1][1] is not None:
+                yield chat_history
+                return
+            
+            user_msg = chat_history[-1][0]
+            history_for_router = chat_history[:-1]
+            
+            # Get the full response
+            full_response = predict_with_router(user_msg, history_for_router, temperature, mode, top_k)
+            
+            # Stream it character by character (simulate typing effect)
+            partial = ""
+            for char in full_response:
+                partial += char
+                chat_history[-1][1] = partial
+                yield chat_history
+        
+        def retry_last(chat_history, temperature, mode, top_k):
+            """Retry the last message with streaming."""
+            if not chat_history:
+                yield chat_history
+                return
+            last_user_msg = chat_history[-1][0]
+            chat_history = chat_history[:-1] + [[last_user_msg, None]]
+            yield chat_history
+            
+            # Stream the new response
+            history_for_router = chat_history[:-1]
+            full_response = predict_with_router(last_user_msg, history_for_router, temperature, mode, top_k)
+            partial = ""
+            for char in full_response:
+                partial += char
+                chat_history[-1][1] = partial
+                yield chat_history
+        
+        # Connect events - two-step: show user msg, then stream response
+        msg.submit(user_message, [msg, chatbot], [msg, chatbot], queue=False).then(
+            bot_response, [chatbot, temperature, mode, top_k], chatbot
+        )
+        submit_btn.click(user_message, [msg, chatbot], [msg, chatbot], queue=False).then(
+            bot_response, [chatbot, temperature, mode, top_k], chatbot
+        )
+        clear_btn.click(lambda: [], None, chatbot, queue=False)
+        retry_btn.click(retry_last, [chatbot, temperature, mode, top_k], chatbot)
+        undo_btn.click(lambda h: h[:-1] if h else h, chatbot, chatbot, queue=False)
+        mode.change(lambda m: gr.update(visible=(m == "retrieval")), mode, top_k)
+    
+    return demo
+
+
 def main():
     """Main entry point for the chat interface."""
-    parser = argparse.ArgumentParser(description="Chatbot Interface for LLMRouter")
+    parser = argparse.ArgumentParser(
+        description="Chatbot Interface for LLMRouter",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+  %(prog)s --router knnrouter --config configs/model_config_test/knnrouter.yaml
+  %(prog)s --router mfrouter --config configs/model_config_test/mfrouter.yaml --mode full_context
+  %(prog)s --router dcrouter --config configs/model_config_test/dcrouter.yaml --share
+        """,
+    )
     parser.add_argument(
         "--router",
         type=str,
@@ -522,50 +935,32 @@ def main():
     if not os.path.exists(args.config):
         raise FileNotFoundError(f"Config file not found: {args.config}")
     
-    # Load router
-    print(f"Loading router: {args.router}")
-    print(f"Using config: {args.config}")
+    # Print startup banner
+    print("\n" + "=" * 60)
+    print("🚀 LLMRouter Chat Interface")
+    print("=" * 60)
+    print(f"  Router:  {args.router}")
+    print(f"  Config:  {args.config}")
+    print(f"  Mode:    {args.mode}")
+    print(f"  Port:    {args.port}")
     if args.load_model_path:
-        print(f"Overriding model path: {args.load_model_path}")
+        print(f"  Model:   {args.load_model_path}")
+    print("=" * 60 + "\n")
     
+    # Load router
+    print("📦 Loading router...")
     router_instance = load_router(args.router, args.config, args.load_model_path)
-    print("✅ Router loaded successfully!")
+    print("✅ Router loaded successfully!\n")
     
-    # Create predict function with router instance bound
-    def predict_with_router(message, history, temperature, mode, top_k):
-        return predict(message, history, router_instance, args.router, temperature, mode, top_k)
-    
-    # Create and launch chat interface
-    interface = gr.ChatInterface(
-        predict_with_router,
-        additional_inputs=[
-            gr.Slider(
-                label="Temperature",
-                minimum=0,
-                maximum=2,
-                value=args.temp,
-                step=0.1,
-            ),
-            gr.Radio(
-                label="Query Mode",
-                choices=["full_context", "current_only", "retrieval"],
-                value=args.mode,
-                info="Full Context: all history + current query | Current Only: single query | Retrieval: top-k similar queries",
-            ),
-            gr.Slider(
-                label="Top-K (Retrieval Mode)",
-                minimum=1,
-                maximum=10,
-                value=args.top_k,
-                step=1,
-                info="Number of similar queries to retrieve (only used in retrieval mode)",
-            ),
-        ],
-        title=f"LLMRouter Chat - {args.router}",
-        description=f"Chat interface using {args.router} router | Mode: {args.mode}",
+    # Create and launch the interface
+    print("🌐 Starting web interface...")
+    demo = create_interface(router_instance, args.router, args)
+    demo.queue().launch(
+        server_name=args.host,
+        server_port=args.port,
+        share=args.share,
+        show_error=True,
     )
-    
-    interface.queue().launch(server_name=args.host, server_port=args.port, share=args.share)
 
 
 if __name__ == "__main__":
