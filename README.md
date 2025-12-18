@@ -107,6 +107,10 @@ Input file formats supported: `.txt` (one query per line), `.json` (list of stri
 
 ### Interactive Chat Interface
 
+<div style="text-align:center;">
+    <img src="assets/llmrouter_chat.gif" style="width: 100%; height: auto;">
+</div>
+
 Launch a Gradio-based chat interface:
 ```bash
 # Basic chat interface

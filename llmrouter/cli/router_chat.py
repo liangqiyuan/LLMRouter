@@ -38,269 +38,218 @@ import torch
 import numpy as np
 
 
-# Minimal, focused CSS for a clean chat interface
+# -----------------------------------------------------------------------------
+# CSS STYLING (UPDATED FOR FORCED LIGHT THEME)
+# -----------------------------------------------------------------------------
 CUSTOM_CSS = """
-:root {
-    --bg: #0d1117;
-    --surface: #161b22;
-    --border: #30363d;
-    --text: #e6edf3;
-    --text-dim: #7d8590;
-    --accent: #58a6ff;
-    --accent-dim: rgba(88, 166, 255, 0.15);
+/* FORCE LIGHT THEME VARIABLES */
+:root, .gradio-container {
+    --body-background-fill: #f3f4f6; /* Slightly darker grey for better contrast with white cards */
+    --body-text-color: #0f172a;
+    --background-fill-primary: #ffffff;
+    --background-fill-secondary: #f8fafc;
+    --border-color-primary: #e2e8f0;
+    --block-background-fill: #ffffff;
+    --block-border-color: #e2e8f0;
+    --block-label-text-color: #64748b;
+    --block-title-text-color: #1e293b;
+    --input-background-fill: #ffffff;
+    --input-border-color: #cbd5e1;
+    --font: 'Inter', system-ui, -apple-system, sans-serif;
 }
 
 .gradio-container {
     max-width: 100% !important;
     width: 100% !important;
     padding: 0 24px !important;
-    background: var(--bg) !important;
+    background: var(--body-background-fill) !important;
 }
 
-/* Compact header bar */
+/* --- SHARED CARD STYLE --- */
+/* This unifies the look of the Info Panel and the Controls Section */
+.side-panel, .controls-section {
+    background: #ffffff !important;
+    border: 1px solid #e2e8f0 !important;
+    border-radius: 16px !important; /* Modern rounded corners */
+    padding: 24px !important;       /* Consistent padding */
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03) !important;
+    margin-bottom: 16px;
+}
+
+/* --- HEADER BAR --- */
 .top-bar {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 12px 0;
-    margin-bottom: 16px;
-    border-bottom: 1px solid var(--border);
+    padding: 20px 0;
+    margin-bottom: 24px;
+    border-bottom: 1px solid #e5e7eb;
 }
 
 .top-bar h1 {
-    font-size: 1.25rem;
-    font-weight: 600;
-    color: var(--text);
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: #111827;
     margin: 0;
+    letter-spacing: -0.025em;
 }
 
 .status-pill {
-    display: inline-flex;
+    background: #dbeafe;
+    color: #1e40af;
+    padding: 6px 16px;
+    border-radius: 9999px;
+    font-size: 0.875rem;
+    font-weight: 600;
+    border: 1px solid #bfdbfe;
+    display: flex;
     align-items: center;
-    gap: 6px;
-    background: var(--accent-dim);
-    border: 1px solid rgba(88, 166, 255, 0.3);
-    border-radius: 16px;
-    padding: 4px 12px;
-    font-size: 0.75rem;
-    color: var(--accent);
+    gap: 8px;
 }
-
 .status-pill::before {
-    content: '';
-    width: 6px;
-    height: 6px;
-    background: #3fb950;
+    content: "";
+    display: block;
+    width: 8px;
+    height: 8px;
+    background: #2563eb;
     border-radius: 50%;
 }
 
-/* Chat area */
-.main-chat .chatbot {
-    background: var(--surface) !important;
-    border: 1px solid var(--border) !important;
-    border-radius: 12px !important;
-    min-height: 560px !important;
-}
-
-/* Kill ALL borders, lines, separators */
-.main-chat .chatbot * {
-    border-left: none !important;
-    border-right: none !important;
-    border-top: none !important;
-    border-bottom: none !important;
-}
-
-.main-chat .chatbot hr { display: none !important; }
-
-/* Message bubbles - compact */
-.main-chat .chatbot .message {
-    padding: 4px 10px !important;
-    margin: 0 !important;
-    border-radius: 4px !important;
-    font-size: 0.88rem !important;
-    line-height: 1.35 !important;
-    min-height: unset !important;
-}
-
-/* Message content wrapper - remove internal padding */
-.main-chat .chatbot .message-wrap,
-.main-chat .chatbot .bubble-wrap {
-    padding: 0 !important;
-    margin: 0 !important;
-    gap: 0 !important;
-}
-
-/* Prose content - Gradio applies this for markdown rendering */
-.main-chat .chatbot .message .prose,
-.main-chat .chatbot .message .md {
-    padding: 0 !important;
-    margin: 0 !important;
-}
-
-/* Remove any flex gaps inside messages */
-.main-chat .chatbot .message > *,
-.main-chat .chatbot .message-bubble {
-    padding: 0 !important;
-    margin: 0 !important;
-}
-
-.main-chat .chatbot .user.message { 
-    background: var(--accent) !important;
-}
-
-.main-chat .chatbot .bot.message { 
-    background: #21262d !important;
-}
-
-/* Row containers */
-.main-chat .chatbot .message-row {
-    padding: 2px 8px !important;
-    margin: 0 !important;
-    gap: 0 !important;
-}
-
-/* Bot/User row containers */
-.main-chat .chatbot .bot-row,
-.main-chat .chatbot .user-row {
-    padding: 0 !important;
-    margin: 0 !important;
-    gap: 0 !important;
-}
-
-/* Avatar - hide or minimize */
-.main-chat .chatbot .avatar-container {
-    display: none !important;
-}
-
-/* Wrapper spacing */
-.main-chat .chatbot .wrap {
-    padding: 6px !important;
-    gap: 1px !important;
-}
-
-/* Input area */
-.input-row textarea {
-    background: var(--surface) !important;
-    border: 1px solid var(--border) !important;
-    border-radius: 8px !important;
-    color: var(--text) !important;
-    font-size: 0.9rem !important;
-}
-
-.input-row textarea:focus {
-    border-color: var(--accent) !important;
+/* --- CHAT AREA --- */
+.main-chat {
+    background: transparent !important;
+    border: none !important;
     box-shadow: none !important;
 }
-
-.input-row button.primary {
-    background: var(--accent) !important;
-    border: none !important;
-    border-radius: 8px !important;
+.main-chat .bubble-wrap {
+    background-color: #ffffff !important;
+    border: 1px solid #e2e8f0 !important;
+    border-radius: 12px !important;
+}
+.main-chat .message.user {
+    background-color: #eff6ff !important;
+    border-color: #bfdbfe !important;
+    color: #1e3a8a !important;
 }
 
-/* Side panel - compact and unobtrusive */
-.side-panel {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 12px;
-    padding: 16px;
+/* --- INPUT AREA --- */
+.input-row textarea {
+    border-radius: 12px !important;
+    padding: 14px !important;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.05) !important;
+    transition: all 0.2s;
+}
+.input-row textarea:focus {
+    border-color: #3b82f6 !important;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15) !important;
+}
+button.primary {
+    background: #2563eb !important;
+    border-radius: 10px !important;
+    transition: background 0.2s;
+}
+button.primary:hover {
+    background: #1d4ed8 !important;
+}
+
+/* --- SIDE PANEL SPECIFICS (TOP BOX) --- */
+.side-panel h3 {
+    margin: 0 0 16px 0;
+    font-size: 0.85rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: #94a3b8;
+    font-weight: 700;
 }
 
 .side-panel .info-row {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 8px 0;
-    border-bottom: 1px solid var(--border);
-    font-size: 0.8rem;
+    padding: 12px 0;
+    border-bottom: 1px dashed #f1f5f9;
 }
-
-.side-panel .info-row:last-child { border-bottom: none; }
+.side-panel .info-row:last-child {
+    border-bottom: none;
+    padding-bottom: 0;
+}
 
 .side-panel .info-label {
-    color: var(--text-dim);
-}
-
-.side-panel .info-value {
-    color: var(--text);
+    font-size: 0.9rem;
+    color: #64748b;
     font-weight: 500;
 }
 
-/* Compact controls */
+.side-panel .info-value {
+    font-family: 'Monaco', monospace;
+    font-size: 0.85rem;
+    color: #0f172a;
+    background: #f1f5f9;
+    padding: 4px 10px;
+    border-radius: 6px;
+    font-weight: 600;
+}
+
+/* --- CONTROLS SPECIFICS (BOTTOM BOX) --- */
 .controls-section {
-    margin-top: 16px;
-    padding-top: 16px;
-    border-top: 1px solid var(--border);
+    margin-top: 0 !important;
 }
 
+/* Clean up Gradio's default label styling to match our custom header */
+.controls-section span.label-wrap, 
 .controls-section label span {
-    font-size: 0.8rem !important;
-    color: var(--text-dim) !important;
+    color: #64748b !important;
+    font-weight: 600 !important;
+    font-size: 0.85rem !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.05em !important;
 }
 
-.controls-section input[type="range"] {
-    accent-color: var(--accent);
+/* Mode Radio Buttons - Modern Pills */
+.mode-radio {
+    margin-bottom: 16px !important;
 }
-
-/* Small action buttons */
-.action-btns button {
+.mode-radio .gradio-radio-group {
     background: transparent !important;
-    border: 1px solid var(--border) !important;
-    border-radius: 6px !important;
-    color: var(--text-dim) !important;
-    font-size: 0.75rem !important;
-    padding: 6px 12px !important;
+    border: none !important;
+    padding: 0 !important;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+.mode-radio label {
+    background: #f8fafc !important;
+    border: 1px solid #e2e8f0 !important;
+    border-radius: 8px !important;
+    padding: 8px 12px !important;
+    font-size: 0.9rem !important;
+    color: #475569 !important;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.03) !important;
+    transition: all 0.2s ease;
+    flex-grow: 1;
+    justify-content: center;
+    text-align: center;
+}
+.mode-radio label:hover {
+    border-color: #cbd5e1 !important;
+    background: #ffffff !important;
+}
+.mode-radio label.selected,
+.mode-radio input[type="radio"]:checked + label {
+    background: #eff6ff !important;
+    border-color: #3b82f6 !important;
+    color: #1d4ed8 !important;
+    box-shadow: 0 0 0 1px #3b82f6 !important;
+}
+.mode-radio .circle { display: none !important; } /* Hide the actual radio circle */
+
+/* Sliders */
+input[type=range] {
+    accent-color: #2563eb;
 }
 
-.action-btns button:hover {
-    border-color: var(--accent) !important;
-    color: var(--accent) !important;
-}
-
-/* Hide unnecessary chrome */
-.gradio-container footer { display: none !important; }
-label .info { display: none !important; }
-
-/* Full width layout */
-.gradio-container > .main { max-width: 100% !important; }
-.gradio-container .contain { max-width: 100% !important; }
-#component-0 { max-width: 100% !important; }
-.gap { width: 100% !important; }
-
-/* Remove vertical thread / timeline line */
-.main-chat .chatbot .message-row::before,
-.main-chat .chatbot .bot-row::before,
-.main-chat .chatbot .user-row::before {
-    display: none !important;
-    content: none !important;
-}
-
-/* Kill any leftover left borders explicitly */
-.main-chat .chatbot .message-row,
-.main-chat .chatbot .bot-row,
-.main-chat .chatbot .user-row {
-    border-left: none !important;
-    background-image: none !important;
-}
-
-/* Remove hidden vertical spacing Gradio keeps */
-.main-chat .chatbot .wrap {
-    padding-top: 0 !important;
-    padding-bottom: 0 !important;
-}
-
-/* Fully collapse message rows */
-.main-chat .chatbot .message-row {
-    min-height: unset !important;
-}
-
-/* Prevent invisible spacer divs */
-.main-chat .chatbot .spacer {
-    display: none !important;
-}
-
+footer { display: none !important; }
 """
-
 
 def _safe_unlink(path: str) -> None:
     try:
@@ -733,7 +682,8 @@ def create_interface(router_instance, router_name: str, args):
     def predict_with_router(message, history, temperature, mode, top_k):
         return predict(message, history, router_instance, router_name, temperature, mode, top_k)
     
-    with gr.Blocks(css=CUSTOM_CSS, theme=gr.themes.Base(), title="LLMRouter") as demo:
+    # Use gr.themes.Base() to minimize default styling interference, but Default is also fine with our overrides
+    with gr.Blocks(css=CUSTOM_CSS, theme=gr.themes.Default(), title="LLMRouter") as demo:
         
         # Minimal top bar
         gr.HTML(f"""
@@ -749,7 +699,8 @@ def create_interface(router_instance, router_name: str, args):
                 chatbot = gr.Chatbot(
                     height=560,
                     show_label=False,
-                    bubble_full_width=False,
+                    type="messages",
+                    elem_classes=["main-chat"]
                 )
                 
                 with gr.Row(elem_classes=["input-row"]):
@@ -767,15 +718,16 @@ def create_interface(router_instance, router_name: str, args):
                     undo_btn = gr.Button("Undo", size="sm")
             
             # Compact side panel
-            with gr.Column(scale=1, min_width=200):
+            with gr.Column(scale=1, min_width=200, elem_classes=["side-column"]):
                 gr.HTML(f"""
                     <div class="side-panel">
+                        <h3>System Info</h3>
                         <div class="info-row">
-                            <span class="info-label">Router</span>
+                            <span class="info-label">Active Router</span>
                             <span class="info-value">{router_name}</span>
                         </div>
                         <div class="info-row">
-                            <span class="info-label">Models</span>
+                            <span class="info-label">Loaded Models</span>
                             <span class="info-value">{llm_count}</span>
                         </div>
                     </div>
@@ -783,9 +735,11 @@ def create_interface(router_instance, router_name: str, args):
                 
                 with gr.Column(elem_classes=["controls-section"]):
                     mode = gr.Radio(
-                        label="Mode",
+                        label="Routing Context", # Changed label for better aesthetics
                         choices=["current_only", "full_context", "retrieval"],
                         value=args.mode,
+                        container=True,
+                        elem_classes=["mode-radio"],
                     )
                     temperature = gr.Slider(
                         label="Temperature",
@@ -808,25 +762,33 @@ def create_interface(router_instance, router_name: str, args):
             """Add user message immediately and clear input."""
             if not message.strip():
                 return "", chat_history
-            return "", chat_history + [[message, None]]
+            # Gradio message objects require string content; use empty string as placeholder
+            updated_history = chat_history + [
+                {"role": "user", "content": message},
+                {"role": "assistant", "content": ""},
+            ]
+            return "", updated_history
         
         def bot_response(chat_history, temperature, mode, top_k):
             """Stream the bot response character by character."""
-            if not chat_history or chat_history[-1][1] is not None:
+            if (
+                len(chat_history) < 2
+                or chat_history[-1].get("role") != "assistant"
+                or chat_history[-1].get("content") not in (None, "")
+                or chat_history[-2].get("role") != "user"
+            ):
                 yield chat_history
                 return
-            
-            user_msg = chat_history[-1][0]
+
+            user_msg = chat_history[-2].get("content", "")
             history_for_router = chat_history[:-1]
-            
-            # Get the full response
+
             full_response = predict_with_router(user_msg, history_for_router, temperature, mode, top_k)
-            
-            # Stream it character by character (simulate typing effect)
+
             partial = ""
             for char in full_response:
                 partial += char
-                chat_history[-1][1] = partial
+                chat_history[-1]["content"] = partial
                 yield chat_history
         
         def retry_last(chat_history, temperature, mode, top_k):
@@ -834,18 +796,26 @@ def create_interface(router_instance, router_name: str, args):
             if not chat_history:
                 yield chat_history
                 return
-            last_user_msg = chat_history[-1][0]
-            chat_history = chat_history[:-1] + [[last_user_msg, None]]
-            yield chat_history
-            
-            # Stream the new response
-            history_for_router = chat_history[:-1]
+
+            trimmed_history = list(chat_history)
+            if trimmed_history and trimmed_history[-1].get("role") == "assistant":
+                trimmed_history = trimmed_history[:-1]
+
+            if not trimmed_history or trimmed_history[-1].get("role") != "user":
+                yield chat_history
+                return
+
+            last_user_msg = trimmed_history[-1].get("content", "")
+            trimmed_history.append({"role": "assistant", "content": ""})
+            yield trimmed_history
+
+            history_for_router = trimmed_history[:-1]
             full_response = predict_with_router(last_user_msg, history_for_router, temperature, mode, top_k)
             partial = ""
             for char in full_response:
                 partial += char
-                chat_history[-1][1] = partial
-                yield chat_history
+                trimmed_history[-1]["content"] = partial
+                yield trimmed_history
         
         # Connect events - two-step: show user msg, then stream response
         msg.submit(user_message, [msg, chatbot], [msg, chatbot], queue=False).then(
@@ -856,7 +826,12 @@ def create_interface(router_instance, router_name: str, args):
         )
         clear_btn.click(lambda: [], None, chatbot, queue=False)
         retry_btn.click(retry_last, [chatbot, temperature, mode, top_k], chatbot)
-        undo_btn.click(lambda h: h[:-1] if h else h, chatbot, chatbot, queue=False)
+        undo_btn.click(
+            lambda h: h[:-2] if len(h) >= 2 and h[-1].get("role") == "assistant" else (h[:-1] if h else h),
+            chatbot,
+            chatbot,
+            queue=False,
+        )
         mode.change(lambda m: gr.update(visible=(m == "retrieval")), mode, top_k)
     
     return demo
