@@ -60,9 +60,16 @@ class RouterR1(MetaRouter):
         )
         return ret["result"][0]
 
-    def route_single(self, query: Dict[str, Any]) -> str:
+    def route_single(self, query: Dict[str, Any], return_details: bool = False):
         """
         Perform inference on Router-R1.
+
+        Args:
+            query: Dict with 'query' field
+            return_details: If True, return dict with response and token counts
+
+        Returns:
+            str if return_details=False, dict if return_details=True
         """
         # Prepare the question
         question = str(query.get("query", "")).strip()
@@ -104,6 +111,11 @@ class RouterR1(MetaRouter):
             stop=["</search>", "</answer>"]
         )
 
+        # Token tracking
+        total_prompt_tokens = 0
+        total_completion_tokens = 0
+        total_route_tokens = 0
+
         cnt = 0
         print('\n\n################# [Start Reasoning + Routing] ##################\n\n')
         STOP = False
@@ -112,8 +124,22 @@ class RouterR1(MetaRouter):
         while True:
             if cnt > 4:
                 break
+
+            # Generate with vLLM and track tokens
             outputs = llm.generate(prompt, sampling_params=sampling_params)
-            output_text = outputs[0].outputs[0].text
+            output = outputs[0]
+            output_text = output.outputs[0].text
+
+            # Track vLLM tokens
+            # vLLM returns prompt_token_ids and output token count
+            if hasattr(output, 'prompt_token_ids'):
+                prompt_tokens = len(output.prompt_token_ids)
+                total_prompt_tokens += prompt_tokens
+
+            # Count completion tokens
+            completion_tokens = len(tokenizer.encode(output_text))
+            total_completion_tokens += completion_tokens
+
             if output_text.find("<answer>") != -1:
                 STOP = True
                 output_text += "</answer>"
@@ -124,7 +150,25 @@ class RouterR1(MetaRouter):
 
             tmp_query = self.get_query(output_text)
             if tmp_query:
-                route_results = self.route(tmp_query, api_base=self.api_base, api_key=self.api_key)
+                # Call access_routing_pool directly to get token information
+                try:
+                    from llmrouter.models.router_r1.route_service import access_routing_pool
+                    route_result_dict = access_routing_pool(
+                        queries=[tmp_query],
+                        api_base=self.api_base,
+                        api_key=self.api_key,
+                    )
+                    # Extract response text and tokens
+                    route_results = route_result_dict["result"][0]
+
+                    # Track routing API tokens
+                    if 'completion_tokens_list' in route_result_dict:
+                        route_tokens = sum(route_result_dict['completion_tokens_list'])
+                        total_route_tokens += route_tokens
+                except Exception as e:
+                    print(f"Warning: Failed to track routing tokens: {e}")
+                    # Fallback to old route method
+                    route_results = self.route(tmp_query, api_base=self.api_base, api_key=self.api_key)
             else:
                 route_results = ''
 
@@ -138,11 +182,19 @@ class RouterR1(MetaRouter):
             cnt += 1
 
         print('\n\n################# [Output] ##################\n\n')
-
         print(all_output)
-
         print('\n\n################# [Output] ##################\n\n')
-        return all_output.strip()
+
+        if return_details:
+            return {
+                "response": all_output.strip(),
+                "prompt_tokens": total_prompt_tokens,
+                "completion_tokens": total_completion_tokens,
+                "route_tokens": total_route_tokens,
+                "total_tokens": total_prompt_tokens + total_completion_tokens + total_route_tokens,
+            }
+        else:
+            return all_output.strip()
 
     def route_batch(self, batch: Optional[Any] = None, task_name: Optional[str] = None) -> List[Dict[str, Any]]:
         """
@@ -202,21 +254,31 @@ class RouterR1(MetaRouter):
                 except (ValueError, KeyError) as e:
                     print(f"Warning: Failed to format query with task '{row_task_name}': {e}. Using original query.")
 
-            # Step 3: Get response using agentic routing
+            # Step 3: Get response using agentic routing with token tracking
             try:
-                response = self.route_single({"query": original_query})
+                result = self.route_single({"query": original_query}, return_details=True)
+                response = result["response"]
+                prompt_tokens = result["prompt_tokens"]
+                completion_tokens = result["completion_tokens"]
+                route_tokens = result.get("route_tokens", 0)
                 success = True
             except Exception as e:
                 print(f"Error during RouterR1 routing: {e}")
                 response = ""
+                prompt_tokens = 0
+                completion_tokens = 0
+                route_tokens = 0
                 success = False
 
-            # Note: RouterR1 uses vLLM and doesn't provide token counts through standard API
+            # RouterR1 token breakdown:
+            # - prompt_tokens: vLLM input tokens across all iterations
+            # - completion_tokens: vLLM output tokens across all iterations
+            # - route_tokens: External routing API tokens (from access_routing_pool)
             row_copy["response"] = response
-            row_copy["prompt_tokens"] = 0  # Token counting not available
-            row_copy["completion_tokens"] = 0
-            row_copy["input_token"] = 0
-            row_copy["output_token"] = 0
+            row_copy["prompt_tokens"] = prompt_tokens + route_tokens  # Include routing in prompt cost
+            row_copy["completion_tokens"] = completion_tokens
+            row_copy["input_token"] = prompt_tokens + route_tokens
+            row_copy["output_token"] = completion_tokens
             row_copy["success"] = success
 
             # Step 4: Calculate task performance if ground truth is available
