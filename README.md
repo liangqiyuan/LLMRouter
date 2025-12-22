@@ -32,25 +32,25 @@
 | `svmrouter` | ✅ | ✅ | Support Vector Machine based routing |
 | `mlprouter` | ✅ | ✅ | Multi-Layer Perceptron based routing |
 | `mfrouter` | ✅ | ✅ | Matrix Factorization based routing |
-| `elorouter` | ❌ | ✅ | Elo Rating based routing |
+| `elorouter` | N/A | ✅ | Elo Rating based routing |
 | `routerdc` | ✅ | ✅ | Dual Contrastive learning based routing |
-| `automix` | ❌ | ✅ | Automatic model mixing |
+| `automix` | N/A | ✅ | Automatic model mixing |
 | `hybrid_llm` | ✅ | ✅ | Hybrid LLM routing strategy |
 | `graphrouter` | ✅ | ✅ | Graph-based routing |
 | `causallm_router` | ✅ | ✅ | Causal Language Model router |
-| `smallest_llm` | ❌ | ✅ | Always routes to smallest model |
-| `largest_llm` | ❌ | ✅ | Always routes to largest model|
+| `smallest_llm` | N/A | ✅ | Always routes to smallest model |
+| `largest_llm` | N/A | ✅ | Always routes to largest model|
 
 ### Multi-Round Routers
 | Router | Training | Inference | Description |
 |--------|:--------:|:---------:|-------------|
-| `router_r1` | ❌ | ✅ | Pre-trained Router-R1 model for multi-turn conversations |
+| `router_r1` | N/A | ✅ | Pre-trained Router-R1 model for multi-turn conversations |
 
 ### Agentic Routers
 | Router | Training | Inference | Description |
 |--------|:--------:|:---------:|-------------|
 | `knnmultiroundrouter` | ✅ | ✅ | KNN-based agentic router for complex tasks |
-| `llmmultiroundrouter` | ❌ | ✅ | LLM-based agentic router for complex tasks |
+| `llmmultiroundrouter` | N/A | ✅ | LLM-based agentic router for complex tasks |
 
 ## Get Started
 
