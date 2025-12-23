@@ -303,6 +303,20 @@ def route_single(self, query_input):
             return {"model_name": model_name}
 ```
 
-## Star History
+<!-- ## Star History
 
-[![Star History Chart](https://api.star-history.com/svg?repos=ulab-uiuc/LLMRouter&type=date&legend=top-left)](https://www.star-history.com/#ulab-uiuc/LLMRouter&type=date&legend=top-left)
+[![Star History Chart](https://api.star-history.com/svg?repos=ulab-uiuc/LLMRouter&type=date&legend=top-left)](https://www.star-history.com/#ulab-uiuc/LLMRouter&type=date&legend=top-left) -->
+
+## Citation
+
+If you find LLMRouter useful for your research or projects, please cite it as:
+
+```bibtex
+@misc{llmrouter2025,
+  title        = {LLMRouter: An Open-Source Library for LLM Routing},
+  author       = {ULAB Research Team},
+  year         = {2025},
+  howpublished = {\url{https://github.com/ulab-uiuc/LLMRouter}},
+  note         = {GitHub repository}
+}
+```
