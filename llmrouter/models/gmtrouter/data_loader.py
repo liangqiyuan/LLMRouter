@@ -12,6 +12,14 @@ from typing import Dict, List, Tuple, Any, Optional
 from pathlib import Path
 from collections import defaultdict
 from enum import Enum
+from pydantic import ValidationError
+
+# Import validation classes
+from llmrouter.data import (
+    DataFormatDetector,
+    GMTRouterInteraction,
+    DataFormatType,
+)
 
 
 class EmbInit(Enum):
@@ -61,6 +69,8 @@ def detect_data_format(file_path: str) -> str:
     """
     Detect whether the data file is GMTRouter format or standard LLMRouter format.
 
+    Uses the centralized DataFormatDetector for consistent format detection.
+
     Args:
         file_path: Path to the data file
 
@@ -68,6 +78,8 @@ def detect_data_format(file_path: str) -> str:
         str: "gmtrouter" or "standard"
     """
     try:
+        detector = DataFormatDetector()
+
         with open(file_path, 'r', encoding='utf-8') as f:
             first_line = f.readline().strip()
             if not first_line:
@@ -75,18 +87,17 @@ def detect_data_format(file_path: str) -> str:
 
             data = json.loads(first_line)
 
-            # Check for GMTRouter-specific fields
-            gmtrouter_fields = {'judge', 'conversation', 'model_emb', 'turn'}
-            if gmtrouter_fields.issubset(set(data.keys())):
-                # Verify conversation structure
-                if 'conversation' in data and isinstance(data['conversation'], list):
-                    if len(data['conversation']) > 0:
-                        conv = data['conversation'][0]
-                        if 'query_emb' in conv and 'rating' in conv:
-                            return "gmtrouter"
+            # Use centralized format detector
+            format_type = detector.detect_format(data)
 
-            # Standard LLMRouter format
-            return "standard"
+            if format_type == DataFormatType.GMTROUTER:
+                return "gmtrouter"
+            elif format_type == DataFormatType.STANDARD:
+                return "standard"
+            else:
+                # Unknown format defaults to standard
+                print(f"Warning: Unknown format detected in {file_path}, defaulting to standard")
+                return "standard"
 
     except Exception as e:
         print(f"Warning: Could not detect format for {file_path}: {e}")
@@ -164,16 +175,35 @@ class GMTRouterDataLoader:
                 f"See llmrouter/models/gmtrouter/README.md for data format specification."
             )
 
-        # Load JSONL
+        # Load JSONL with Pydantic validation
         interactions = []
+        validation_errors = 0
         with open(file_path, 'r', encoding='utf-8') as f:
             for line_num, line in enumerate(f, 1):
                 try:
                     data = json.loads(line.strip())
-                    interactions.append(data)
+
+                    # Validate using Pydantic model
+                    try:
+                        validated_interaction = GMTRouterInteraction(**data)
+                        # Convert back to dict for processing
+                        interactions.append(validated_interaction.model_dump())
+                    except ValidationError as ve:
+                        validation_errors += 1
+                        print(f"Warning: Validation error at line {line_num}:")
+                        print(f"  {ve}")
+                        if validation_errors > 10:
+                            print(f"Too many validation errors (>{validation_errors}). Please check data format.")
+                            print(f"See GMTRouter README for correct JSONL format.")
+                            raise ValueError("Data validation failed")
+                        continue
+
                 except json.JSONDecodeError as e:
                     print(f"Warning: Skipping invalid JSON at line {line_num}: {e}")
                     continue
+
+        if validation_errors > 0:
+            print(f"Total validation errors: {validation_errors} lines skipped")
 
         print(f"Loaded {len(interactions)} interactions")
 

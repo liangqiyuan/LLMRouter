@@ -20,6 +20,7 @@ import numpy as np
 from llmrouter.models.meta_router import MetaRouter
 from llmrouter.models.gmtrouter.data_loader import GMTRouterDataLoader, detect_data_format
 from llmrouter.models.gmtrouter.models import GMTRouterModel
+from llmrouter.data import get_format_requirements, DataFormatType
 
 
 class GMTRouter(MetaRouter):
@@ -128,9 +129,22 @@ class GMTRouter(MetaRouter):
         # Detect and validate format
         format_type = detect_data_format(train_path)
         if format_type != "gmtrouter":
-            print(f"Error: Data format mismatch!")
-            print(f"Expected GMTRouter JSONL format, but got: {format_type}")
-            print("See llmrouter/models/gmtrouter/README.md for correct data format.")
+            print(f"\n{'='*70}")
+            print(f"ERROR: Data Format Mismatch!")
+            print(f"{'='*70}")
+            print(f"Expected: GMTRouter JSONL format")
+            print(f"Detected: {format_type}")
+            print()
+
+            # Show format requirements
+            requirements = get_format_requirements(DataFormatType.GMTROUTER)
+            print(f"Required fields: {', '.join(requirements['required_fields'])}")
+            print()
+            print("Example JSONL entry:")
+            print(json.dumps(requirements['example'], indent=2))
+            print()
+            print(f"See llmrouter/models/gmtrouter/README.md for complete documentation.")
+            print(f"{'='*70}\n")
             return None, None
 
         print(f"Loading training data from {train_path}...")

@@ -4,6 +4,53 @@ Data format definitions and validation for LLMRouter.
 Defines abstract base classes and validators for:
 1. Standard router data format (query-response pairs)
 2. GMTRouter data format (JSONL with embeddings and ratings)
+
+Usage Examples:
+
+1. Automatic Format Detection:
+    ```python
+    from llmrouter.data import DataFormatDetector
+
+    detector = DataFormatDetector()
+    is_valid, format_type, error_msg = detector.validate_and_detect(data)
+
+    if not is_valid:
+        print(f"Validation error: {error_msg}")
+    else:
+        print(f"Detected format: {format_type}")
+    ```
+
+2. Validate GMTRouter Data:
+    ```python
+    from llmrouter.data import GMTRouterInteraction
+    from pydantic import ValidationError
+
+    try:
+        interaction = GMTRouterInteraction(**data)
+        print("Valid GMTRouter data!")
+    except ValidationError as e:
+        print(f"Invalid data: {e}")
+    ```
+
+3. Validate Standard Query Data:
+    ```python
+    from llmrouter.data import StandardQueryData
+
+    query = StandardQueryData(
+        query="What is machine learning?",
+        task="qa",
+        query_id="q_001"
+    )
+    ```
+
+4. Get Format Requirements:
+    ```python
+    from llmrouter.data import get_format_requirements, DataFormatType
+
+    requirements = get_format_requirements(DataFormatType.GMTROUTER)
+    print(f"Required fields: {requirements['required_fields']}")
+    print(f"Example: {requirements['example']}")
+    ```
 """
 
 from typing import Any, Dict, List, Optional, Union
