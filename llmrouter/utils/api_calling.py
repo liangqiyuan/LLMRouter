@@ -146,6 +146,7 @@ def call_api(
             - query (str): The query/prompt to send
             - model_name (str): Model identifier name (not used for API call)
             - api_name (str): Actual API model name/path (e.g., "qwen/qwen2.5-7b-instruct")
+            - system_prompt (str, optional): System prompt for task-specific instructions
         api_keys_env: Optional override for API_KEYS env var (for testing)
         max_tokens: Maximum tokens to generate
         temperature: Sampling temperature
@@ -218,10 +219,16 @@ def call_api(
             # Make API call using LiteLLM completion directly
             # Format: openai/{api_name} tells LiteLLM to use OpenAI-compatible client
             model_for_litellm = f"openai/{req['api_name']}"
-            
+
+            # Build messages list with optional system prompt
+            messages = []
+            if req.get('system_prompt'):
+                messages.append({"role": "system", "content": req['system_prompt']})
+            messages.append({"role": "user", "content": req['query']})
+
             response = completion(
                 model=model_for_litellm,
-                messages=[{"role": "user", "content": req['query']}],
+                messages=messages,
                 api_key=selected_api_key,
                 api_base=req['api_endpoint'],
                 max_tokens=max_tokens,

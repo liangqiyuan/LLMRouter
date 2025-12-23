@@ -37,6 +37,7 @@ from .data_processing import process_final_data, generate_embeddings_for_data
 from .constants import TASK_DESCRIPTIONS, TASK_CATEGORIES, API_KEYS, HF_TOKEN, CASE_NUM
 from .setup import setup_environment
 from .api_calling import call_api
+from .router_helpers import format_api_request_with_task
 
 # Import evaluation functions from evaluation.py (optional deps)
 try:
@@ -79,5 +80,5 @@ __all__ = ["load_csv",
     'TASK_DESCRIPTIONS', 'TASK_CATEGORIES', 'API_KEYS', 'HF_TOKEN', 'CASE_NUM',
     'setup_environment',
     'f1_score', 'exact_match_score', 'get_bert_score', 'evaluate_code', 'cem_score', 'calculate_task_performance',
-    'call_api'
+    'call_api', 'format_api_request_with_task'
 ]
