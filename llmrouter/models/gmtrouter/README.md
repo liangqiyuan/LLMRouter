@@ -5,8 +5,8 @@
 **GMTRouter uses a fundamentally different architecture and data format from other routers in LLMRouter.**
 
 - **Original Repository**: https://github.com/ulab-uiuc/GMTRouter
-- **For Training**: Please use the original GMTRouter repository
-- **In LLMRouter**: This integration provides inference capabilities only
+- **Training Status**: ✅ **Fully integrated into LLMRouter** - train and infer using LLMRouter CLI
+- **Data Format**: Special JSONL format with embeddings and ratings (see below)
 
 ## Overview
 
@@ -163,35 +163,18 @@ After extraction, you should have:
 
 ## Training GMTRouter
 
-### ⚠️ Use Original Repository for Training
+### ✅ Training Fully Integrated into LLMRouter
 
-Training GMTRouter requires PyTorch Geometric and the original codebase:
+GMTRouter training is now **fully integrated** into LLMRouter. You can train using the standard LLMRouter CLI:
 
 ```bash
-# 1. Clone GMTRouter repository
-git clone https://github.com/ulab-uiuc/GMTRouter
-cd GMTRouter
-
-# 2. Create environment
-conda create -n gmtrouter python=3.11.13
-conda activate gmtrouter
-
-# 3. Install PyTorch with CUDA
-pip install torch==2.6.* --index-url https://download.pytorch.org/whl/cu124
-
-# 4. Install requirements
-pip install -r requirements.txt
-pip install torch-geometric==2.6.1
-
-# 5. Download and prepare data (see above)
-
-# 6. Run training
-python src/train.py --config configs/sample.yaml
+# Train GMTRouter using LLMRouter CLI
+llmrouter train --router gmtrouter --config configs/model_config_train/gmtrouter.yaml
 ```
 
 ### Training Configuration
 
-Edit `configs/sample.yaml`:
+Edit `configs/model_config_train/gmtrouter.yaml`:
 
 ```yaml
 dataset:
@@ -200,24 +183,70 @@ dataset:
 
 train:
   epochs: 350             # Training epochs
-  lr: 5e-4                # Learning rate
+  lr: 5e-4                # Learning rate (5e-4 recommended)
   record_per_user: 10     # Min interactions per user
+  prediction_count: 256   # Pairwise predictions per batch
   multi_turn: false       # Enable multi-turn mode
   objective: auc          # Metric: auc or accuracy
+  binary: true            # Pairwise comparison learning
   eval_every: 5           # Validation frequency
+
+gmt_config:
+  num_gnn_layers: 2       # HGT layers (2 for single-turn, 3 for multi-turn)
+  hidden_dim: 128         # Hidden dimension
+  dropout: 0.1            # Dropout rate
+  personalization: true   # Enable user preference learning
 
 checkpoint:
   root: ./models
   save_every: 25          # Checkpoint frequency
+
+data_path:
+  training_set: ./data/mt_bench/training_set.jsonl
+  valid_set: ./data/mt_bench/valid_set.jsonl
+  test_set: ./data/mt_bench/test_set.jsonl
+
+model_path:
+  save_model_path: ./saved_models/gmtrouter/gmtrouter.pt
+  load_model_path: ./saved_models/gmtrouter/gmtrouter.pt
 ```
 
-### Transfer Model to LLMRouter
+### What Happens During Training
 
-After training, copy the checkpoint:
+1. **Data Loading**: Automatic format detection validates GMTRouter JSONL format
+2. **Graph Construction**: Builds heterogeneous graph with 5 node types and 21 edge types
+3. **Model Initialization**: Creates HeteroGNN + PreferencePredictor architecture
+4. **Pairwise Learning**: Trains on pairwise comparisons (winner vs loser)
+5. **Evaluation**: Validates on AUC or accuracy every N epochs
+6. **Checkpointing**: Saves best model and regular checkpoints
 
-```bash
-# Copy from GMTRouter to LLMRouter
-cp models/[your_checkpoint].pt [LLMRouter_path]/models/gmtrouter_checkpoint.pt
+### Training Output
+
+```
+======================================================================
+GMTRouter Training
+======================================================================
+Loading training data from ./data/mt_bench/training_set.jsonl...
+Detected format: gmtrouter
+Building heterogeneous graph...
+  - Users: 150, Sessions: 450, Queries: 1200, LLMs: 8, Responses: 1200
+  - Edge types: 21
+  - Pairwise comparisons: 3600
+
+Training Configuration:
+  Device: cuda
+  Epochs: 350
+  Learning Rate: 5e-4
+  Hidden Dim: 128
+  GNN Layers: 2
+  Objective: auc
+  Binary Classification: True
+
+Epoch 5/350 - Train Loss: 0.4523, Train AUC: 0.7245 - Val Loss: 0.4012, Val AUC: 0.7856
+  → Saved best model to ./saved_models/gmtrouter/gmtrouter.pt
+...
+Training completed!
+Best AUC: 0.8934 at epoch 245
 ```
 
 ## Using GMTRouter in LLMRouter

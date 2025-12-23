@@ -1,8 +1,8 @@
 # GMTRouter Training Configuration
 # Based on: https://github.com/ulab-uiuc/GMTRouter
 #
-# IMPORTANT: For actual training, please use the original GMTRouter repository
-# This config is for reference and inference integration with LLMRouter
+# Training is now FULLY INTEGRATED into LLMRouter
+# Use: llmrouter train --router gmtrouter --config configs/model_config_train/gmtrouter.yaml
 
 # Dataset configuration
 dataset:
@@ -63,9 +63,9 @@ data_path:
 
 # Model paths
 model_path:
-  checkpoint_root: ./models
-  save_model_path: ./models/gmtrouter_checkpoint.pt
-  load_model_path: ./models/gmtrouter_checkpoint.pt
+  checkpoint_root: ./saved_models/gmtrouter
+  save_model_path: ./saved_models/gmtrouter/gmtrouter.pt
+  load_model_path: ./saved_models/gmtrouter/gmtrouter.pt
 
 # Data Download Instructions:
 # ===========================
@@ -115,23 +115,18 @@ model_path:
 
 # Training Instructions:
 # ======================
-# For actual training, use the original GMTRouter repository:
+# Training is fully integrated into LLMRouter. Just run:
 #
-# 1. Clone the repository:
-#    git clone https://github.com/ulab-uiuc/GMTRouter
-#    cd GMTRouter
+#   llmrouter train --router gmtrouter --config configs/model_config_train/gmtrouter.yaml
 #
-# 2. Setup environment:
-#    conda create -n gmtrouter python=3.11.13
-#    conda activate gmtrouter
-#    pip install torch==2.6.* --index-url https://download.pytorch.org/whl/cu124
-#    pip install -r requirements.txt
-#    pip install torch-geometric==2.6.1
+# Requirements:
+#   - PyTorch 2.6+ with CUDA 12.4+ (recommended for GPU training)
+#   - PyTorch Geometric 2.6.1 (optional, falls back to simplified mode if not available)
+#   - GMTRouter dataset downloaded and extracted to ./data/ (see above)
 #
-# 3. Download and prepare data (see above)
-#
-# 4. Run training:
-#    python src/train.py --config configs/sample.yaml
-#
-# 5. Copy trained checkpoint to LLMRouter:
-#    cp models/[checkpoint].pt [LLMRouter_path]/models/gmtrouter_checkpoint.pt
+# The trainer will:
+#   1. Automatically detect and validate GMTRouter JSONL format
+#   2. Build heterogeneous graph with 5 node types and 21 edge types
+#   3. Train HeteroGNN + PreferencePredictor with pairwise learning
+#   4. Save checkpoints to ./saved_models/gmtrouter/
+#   5. Evaluate on AUC or accuracy metrics
