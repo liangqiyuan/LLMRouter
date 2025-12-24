@@ -54,6 +54,7 @@ from llmrouter.utils import (
 
 # Import evaluation functions
 from llmrouter.utils import f1_score, exact_match_score, get_bert_score, evaluate_code, cem_score
+from llmrouter.utils.evaluation import last_boxed_only_string, remove_boxed, is_equiv
 try:
     from human_eval.evaluate_functional_correctness import entry_point_item
 except ImportError:  # pragma: no cover
@@ -63,8 +64,6 @@ try:
     from mbpp.mbpp_eval import entry_point_item_mbpp
 except ImportError:  # pragma: no cover
     entry_point_item_mbpp = None
-
-from llmrouter.data.math_eval import last_boxed_only_string, remove_boxed, is_equiv
 
 # Setup environment
 setup_environment()
