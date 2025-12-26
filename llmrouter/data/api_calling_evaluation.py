@@ -1,21 +1,20 @@
 #!/usr/bin/env python3
 """
-API Calling and Evaluation Script using LiteLLM Router
+API Calling and Evaluation Script - Step 3: Generate Routing Data and Unified Embeddings
 
-This script performs API calling and response evaluation using LiteLLM Router
-for load balancing across multiple API keys, then applies final processing
-to match the exact output format of process.py and preprocessing_all_in_one.py.
+This script performs API calling and response evaluation using LiteLLM Router,
+then generates unified embeddings .pt file and routing data JSONL files.
 
-Input: Pre-generated base data CSV file
-Output: Same format as process.py (3 files: .pt + 2 .jsonl)
+Input: Query data JSONL files (train/test) from config
+Output: Unified embeddings .pt + routing data JSONL files (train/test)
 
 Usage:
-    python api_calling_evaluation.py --input base_data.csv [--workers N] [--test]
+    python api_calling_evaluation.py --config config.yaml [--workers N] [--test]
     
 Examples:
-    python api_calling_evaluation.py --input dataset/14_task_train.csv
-    python api_calling_evaluation.py --input dataset/14_task_train.csv --workers 50
-    python api_calling_evaluation.py --input dataset/14_task_train.csv --test
+    python api_calling_evaluation.py --config configs/data_generation.yaml
+    python api_calling_evaluation.py --config config.yaml --workers 50
+    python api_calling_evaluation.py --config config.yaml --test
 """
 
 import os
@@ -25,6 +24,7 @@ import json
 import ast
 import re
 import argparse
+import yaml
 from typing import Dict, List, Tuple, Optional, Union
 from collections import defaultdict
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -51,6 +51,8 @@ from llmrouter.utils import (
     generate_task_query, ProgressTracker, to_tensor, clean_df,
     process_final_data
 )
+from llmrouter.utils.data_processing import process_unified_embeddings_and_routing
+from llmrouter.data.data_loader import DataLoader
 
 # Import evaluation functions
 from llmrouter.utils import f1_score, exact_match_score, get_bert_score, evaluate_code, cem_score
@@ -93,17 +95,34 @@ API_KEYS = _parse_api_keys_env()
 class LiteLLMRouterManager:
     """Manages LiteLLM Router instances for different models"""
     
-    def __init__(self, config_path="llm_descriptions.json"):
-        self.config_path = config_path
+    def __init__(self, llm_data_path=None, llm_data_dict=None):
+        """
+        Initialize router manager.
+        
+        Args:
+            llm_data_path: Path to llm_descriptions.json file (legacy)
+            llm_data_dict: Dictionary with LLM data (preferred, from config)
+        """
         self.routers = {}
+        if llm_data_dict:
+            self.config = llm_data_dict
+        elif llm_data_path:
+            with open(llm_data_path, 'r') as f:
+                self.config = json.load(f)
+        else:
+            # Try default path
+            default_path = "llm_descriptions.json"
+            if os.path.exists(default_path):
+                with open(default_path, 'r') as f:
+                    self.config = json.load(f)
+            else:
+                raise ValueError("No LLM data provided. Use llm_data_path or llm_data_dict")
+        
         self._load_model_config()
         self._create_routers()
     
     def _load_model_config(self):
-        """Load model configuration from JSON file"""
-        with open(self.config_path, 'r') as f:
-            self.config = json.load(f)
-        
+        """Load model configuration"""
         # Filter to non-_think variants only
         all_models = list(self.config.keys())
         self.allowed_models = [model for model in all_models if not model.endswith('_think')]
@@ -215,9 +234,11 @@ def process_single_query_model(args):
         result_row['formatted_query'] = formatted_query
         result_row['response'] = response_text
         result_row['token_num'] = token_num
-        result_row['prompt_tokens'] = prompt_tokens
-        result_row['completion_tokens'] = completion_tokens
+        result_row['input_tokens'] = prompt_tokens
+        result_row['output_tokens'] = completion_tokens
         result_row['response_time'] = end_time - start_time
+        # API key tracking (set empty string if not available)
+        result_row['api_key_used'] = ""
         
         tracker.update(success=True, model_name=model_name)
         return result_row, True
@@ -231,19 +252,17 @@ def process_single_query_model(args):
         result_row['formatted_query'] = "ERROR"
         result_row['response'] = f"ERROR: {str(e)}"
         result_row['token_num'] = 0
-        result_row['prompt_tokens'] = 0
-        result_row['completion_tokens'] = 0
+        result_row['input_tokens'] = 0
+        result_row['output_tokens'] = 0
         result_row['response_time'] = 0
+        result_row['api_key_used'] = ""
         
         tracker.update(success=False, model_name=model_name)
         return result_row, False
 
-def generate_responses(base_df, max_workers=100):
+def generate_responses(base_df, router_manager, max_workers=100):
     """Generate responses from multiple models using LiteLLM Router"""
     print("=== API CALLING WITH LITELLM ROUTER ===")
-    
-    # Initialize router manager
-    router_manager = LiteLLMRouterManager()
     
     # Create all query-model combinations
     print(f"Creating query-model combinations...")
@@ -459,7 +478,8 @@ def evaluate_responses(df):
         try:
             # Get evaluation parameters
             prediction = row["response"] if not pd.isna(row["response"]) else ""
-            ground_truth = row["gt"]
+            # Handle both 'gt' and 'ground_truth' field names
+            ground_truth = row.get("ground_truth") if "ground_truth" in row else row.get("gt")
             task_name = row["task_name"]
             metric = row["metric"]
             model_name = row["model_name"]
@@ -539,53 +559,145 @@ def evaluate_responses(df):
 # MAIN EXECUTION
 # ============================================================================
 
+def load_query_data_jsonl(file_path: str) -> List[Dict]:
+    """Load query data from JSONL file"""
+    data = []
+    with open(file_path, 'r', encoding='utf-8') as f:
+        for line in f:
+            if line.strip():
+                record = json.loads(line.strip())
+                # Parse choices if it's a string
+                if 'choices' in record and isinstance(record['choices'], str):
+                    try:
+                        record['choices'] = json.loads(record['choices'])
+                    except:
+                        record['choices'] = None
+                data.append(record)
+    return data
+
+
+def query_data_to_dataframe(query_data: List[Dict]) -> pd.DataFrame:
+    """Convert query data list to DataFrame for processing"""
+    # Convert to DataFrame format expected by API calling
+    # Keep ground_truth (not gt) to match sample format
+    rows = []
+    for item in query_data:
+        row = {
+            'task_name': item['task_name'],
+            'query': item['query'],
+            'ground_truth': item['ground_truth'],  # Keep as ground_truth to match sample
+            'metric': item['metric'],
+            'choices': item.get('choices'),
+            'task_id': item.get('task_id')
+        }
+        rows.append(row)
+    return pd.DataFrame(rows)
+
+
 def main():
     """Main execution function"""
     parser = argparse.ArgumentParser(description="API Calling and Evaluation with LiteLLM Router")
-    parser.add_argument("--input", type=str, required=True,
-                       help="Path to input CSV file with base data")
+    parser.add_argument("--config", type=str, required=True,
+                       help="Path to YAML config file")
     parser.add_argument("--workers", type=int, default=100,
                        help="Number of parallel workers for API calls")
     parser.add_argument("--test", action="store_true",
-                       help="Run with first 100 rows for quick testing")
+                       help="Run with limited samples for quick testing")
     
     args = parser.parse_args()
     
-    # Check if input file exists
-    if not os.path.exists(args.input):
-        print(f"Error: Input file not found: {args.input}")
+    # Load config
+    if not os.path.exists(args.config):
+        print(f"Error: Config file not found: {args.config}")
         sys.exit(1)
     
-    # Load base data
-    print(f"Loading base data from: {args.input}")
-    base_df = pd.read_csv(args.input)
+    with open(args.config, 'r') as f:
+        config = yaml.safe_load(f)
+    
+    project_root = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
+    loader = DataLoader(project_root)
+    data_path = config.get("data_path", {})
+    
+    # Get paths from config
+    query_data_train_path = loader.to_abs(data_path.get("query_data_train", ""))
+    query_data_test_path = loader.to_abs(data_path.get("query_data_test", ""))
+    llm_data_path = loader.to_abs(data_path.get("llm_data", ""))
+    embedding_output_path = loader.to_abs(data_path.get("query_embedding_data", ""))
+    routing_train_output_path = loader.to_abs(data_path.get("routing_data_train", ""))
+    routing_test_output_path = loader.to_abs(data_path.get("routing_data_test", ""))
+    
+    # Check if input files exist
+    if not os.path.exists(query_data_train_path):
+        print(f"Error: Train query data file not found: {query_data_train_path}")
+        sys.exit(1)
+    if not os.path.exists(query_data_test_path):
+        print(f"Error: Test query data file not found: {query_data_test_path}")
+        sys.exit(1)
+    if not os.path.exists(llm_data_path):
+        print(f"Error: LLM data file not found: {llm_data_path}")
+        sys.exit(1)
+    
+    # Load query data
+    print(f"Loading train query data from: {query_data_train_path}")
+    query_data_train = load_query_data_jsonl(query_data_train_path)
+    
+    print(f"Loading test query data from: {query_data_test_path}")
+    query_data_test = load_query_data_jsonl(query_data_test_path)
     
     if args.test:
-        base_df = base_df.head(100)
-        print(f"Running in test mode with {len(base_df)} rows...")
+        query_data_train = query_data_train[:50]  # Limit for testing
+        query_data_test = query_data_test[:20]
+        print(f"Running in test mode with {len(query_data_train)} train and {len(query_data_test)} test samples...")
     
-    print(f"Base data shape: {base_df.shape}")
-    print(f"Tasks in data: {sorted(base_df['task_name'].unique())}")
+    # Load LLM data
+    print(f"Loading LLM data from: {llm_data_path}")
+    with open(llm_data_path, 'r', encoding='utf-8') as f:
+        llm_data = json.load(f)
+    
+    # Convert query data to DataFrames
+    train_df = query_data_to_dataframe(query_data_train)
+    test_df = query_data_to_dataframe(query_data_test)
+    
+    print(f"Train data: {len(train_df)} queries")
+    print(f"Test data: {len(test_df)} queries")
+    print(f"Tasks: {sorted(set(train_df['task_name'].unique()) | set(test_df['task_name'].unique()))}")
     
     start_time = time.time()
     
     try:
-        # Generate responses using LiteLLM Router
-        response_df = generate_responses(base_df, max_workers=args.workers)
+        # Initialize router manager
+        router_manager = LiteLLMRouterManager(llm_data_dict=llm_data)
         
-        # Evaluate responses
-        evaluated_df = evaluate_responses(response_df)
+        # Generate responses for train data
+        print("\n=== Processing Train Data ===")
+        train_response_df = generate_responses(train_df, router_manager, max_workers=args.workers)
+        train_evaluated_df = evaluate_responses(train_response_df)
         
-        # Final processing to match process.py format
-        train_df, test_df, embedding_dict = process_final_data(evaluated_df)
+        # Generate responses for test data
+        print("\n=== Processing Test Data ===")
+        test_response_df = generate_responses(test_df, router_manager, max_workers=args.workers)
+        test_evaluated_df = evaluate_responses(test_response_df)
+        
+        # Process unified embeddings and routing data
+        print("\n=== Processing Unified Embeddings and Routing Data ===")
+        embedding_dict, train_final, test_final = process_unified_embeddings_and_routing(
+            df_train=train_evaluated_df,
+            df_test=test_evaluated_df,
+            query_data_train=query_data_train,
+            query_data_test=query_data_test,
+            embedding_output_path=embedding_output_path,
+            routing_train_output_path=routing_train_output_path,
+            routing_test_output_path=routing_test_output_path
+        )
         
         total_time = time.time() - start_time
         print(f"\n🎉 Processing completed successfully in {total_time:.1f} seconds!")
         print(f"📊 Final statistics:")
-        print(f"  - Total samples processed: {len(evaluated_df)}")
-        print(f"  - Train samples: {len(train_df)}")
-        print(f"  - Test samples: {len(test_df)}")
-        print(f"  - Average performance: {evaluated_df['performance'].mean():.4f}")
+        print(f"  - Train samples: {len(train_final)}")
+        print(f"  - Test samples: {len(test_final)}")
+        print(f"  - Unified embeddings: {len(embedding_dict)}")
+        print(f"  - Average train performance: {train_evaluated_df['performance'].mean():.4f}")
+        print(f"  - Average test performance: {test_evaluated_df['performance'].mean():.4f}")
         
     except KeyboardInterrupt:
         print("\n⚠️  Processing interrupted by user")
