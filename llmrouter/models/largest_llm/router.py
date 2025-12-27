@@ -169,9 +169,6 @@ class LargestLLM(MetaRouter):
                 print("Warning: No batch provided and no test data available for batch routing.")
                 return []
 
-        # Get API endpoint from config
-        api_endpoint = self.cfg.get("api_endpoint", "https://integrate.api.nvidia.com/v1")
-
         query_data_output = []
         for row in query_data:
             # Handle both dict and non-dict inputs
@@ -205,9 +202,27 @@ class LargestLLM(MetaRouter):
                 query_text_for_execution = original_query
 
             # Step 3: Call API to get response
+            # Get API endpoint and model name from llm_data if available
             api_model_name = model_name
+            api_endpoint = None
             if hasattr(self, 'llm_data') and self.llm_data and model_name in self.llm_data:
                 api_model_name = self.llm_data[model_name].get("model", model_name)
+                # Get API endpoint from llm_data, fallback to router config
+                api_endpoint = self.llm_data[model_name].get(
+                    "api_endpoint",
+                    self.cfg.get("api_endpoint")
+                )
+            
+            # If still no endpoint found, try router config
+            if api_endpoint is None:
+                api_endpoint = self.cfg.get("api_endpoint")
+            
+            # Validate that we have an endpoint
+            if not api_endpoint:
+                raise ValueError(
+                    f"API endpoint not found for model '{model_name}'. "
+                    f"Please specify 'api_endpoint' in llm_data JSON for this model or in router YAML config."
+                )
 
             request = {
                 "api_endpoint": api_endpoint,

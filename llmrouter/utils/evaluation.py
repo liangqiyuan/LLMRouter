@@ -635,8 +635,15 @@ def model_prompting(
     base_url = (
         os.environ.get("OPENAI_API_BASE")
         or os.environ.get("NVIDIA_API_BASE")
-        or "https://integrate.api.nvidia.com/v1"
-    ).strip()
+    )
+    
+    if not base_url:
+        raise ValueError(
+            "API endpoint (base_url) not found. Please set OPENAI_API_BASE or "
+            "NVIDIA_API_BASE environment variable."
+        )
+    
+    base_url = base_url.strip()
 
     client = OpenAI(
         base_url=base_url,

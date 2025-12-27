@@ -139,6 +139,15 @@ class LiteLLMRouterManager:
 
         for model_name in self.allowed_models:
             api_model_name = self.config[model_name]["model"]
+            # Get API endpoint from llm_data
+            api_endpoint = self.config[model_name].get("api_endpoint")
+            
+            # Validate that we have an endpoint
+            if not api_endpoint:
+                raise ValueError(
+                    f"API endpoint not found for model '{model_name}' in llm_data. "
+                    f"Please specify 'api_endpoint' field for this model in the llm_data JSON file."
+                )
             
             # Create model list with all API keys for load balancing
             model_list = []
@@ -148,7 +157,7 @@ class LiteLLMRouterManager:
                     "litellm_params": {
                         "model": api_model_name,
                         "api_key": api_key,
-                        "api_base": "https://integrate.api.nvidia.com/v1",
+                        "api_base": api_endpoint,
                         "timeout": self._get_timeout_for_model(model_name),
                         "max_retries": 3
                     }

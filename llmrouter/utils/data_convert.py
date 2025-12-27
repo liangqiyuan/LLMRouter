@@ -149,8 +149,22 @@ def determine_ability(task_name: str, query: str) -> str:
     return "fact-reasoning"
 
 
-def call_llm_for_ability(query: str, task_name: str, api_key: str) -> str:
+def call_llm_for_ability(query: str, task_name: str, api_key: str, api_base: str = None) -> str:
     """Use LLM API to generate ability"""
+    # Get api_base from environment or parameter
+    if not api_base:
+        import os
+        api_base = (
+            os.environ.get("OPENAI_API_BASE")
+            or os.environ.get("NVIDIA_API_BASE")
+        )
+    
+    if not api_base:
+        raise ValueError(
+            "API endpoint (api_base) not found. Please specify 'api_base' parameter or set "
+            "OPENAI_API_BASE or NVIDIA_API_BASE environment variable."
+        )
+    
     try:
         prompt = f"""Based on the following task and query, determine which ability type this task belongs to. Please choose one from the following options: fact-reasoning, math-reasoning, commonsense-reasoning, code-generation, logical-reasoning.
 
@@ -163,7 +177,7 @@ Please only return the ability type, do not return any other content."""
             model="meta/llama-3.1-8b-instruct",
             messages=[{"role": "user", "content": prompt}],
             api_key=api_key,
-            api_base="https://integrate.api.nvidia.com/v1",
+            api_base=api_base,
             max_tokens=50,
             temperature=0.1
         )

@@ -341,21 +341,43 @@ def infer_query(
                 "routing_result": routing_result,
             }
 
-        # Get API endpoint from router config
-        api_endpoint = router_instance.cfg.get("api_endpoint", "https://integrate.api.nvidia.com/v1")
-
-        # Get the actual API model name from llm_data if available
+        # Get API endpoint and model name from llm_data if available
         api_model_name = model_name  # Default to model_name
+        api_endpoint = None
+        
         if hasattr(router_instance, 'llm_data') and router_instance.llm_data:
             if model_name in router_instance.llm_data:
                 # Use the "model" field from llm_data which contains the full API path
                 api_model_name = router_instance.llm_data[model_name].get("model", model_name)
+                # Get API endpoint from llm_data, fallback to router config
+                api_endpoint = router_instance.llm_data[model_name].get(
+                    "api_endpoint",
+                    router_instance.cfg.get("api_endpoint")
+                )
             else:
                 # If model_name not found, try to find it by matching model field
                 for key, value in router_instance.llm_data.items():
                     if value.get("model") == model_name or key == model_name:
                         api_model_name = value.get("model", model_name)
+                        # Get API endpoint from llm_data, fallback to router config
+                        api_endpoint = value.get(
+                            "api_endpoint",
+                            router_instance.cfg.get("api_endpoint")
+                        )
                         break
+        
+        # If still no endpoint found, try router config
+        if api_endpoint is None:
+            api_endpoint = router_instance.cfg.get("api_endpoint")
+        
+        # Validate that we have an endpoint
+        if not api_endpoint:
+            return {
+                "success": False,
+                "query": query,
+                "error": f"API endpoint not found for model '{model_name}'. Please specify 'api_endpoint' in llm_data JSON for this model or in router YAML config.",
+                "routing_result": routing_result,
+            }
 
         # Call the routed model via API
         request = {

@@ -227,6 +227,9 @@ python llmrouter/data/api_calling_evaluation.py --config llmrouter/data/sample_c
 | `output_price` | float | Cost per million output tokens | `0.20` |
 | `model` | string | API model identifier | `"qwen/qwen2.5-7b-instruct"` |
 | `service` | string | Service provider | `"NVIDIA"` |
+| `api_endpoint` | string | API endpoint URL for this model | `"https://integrate.api.nvidia.com/v1"` |
+
+**Note on `api_endpoint`**: Required field specifying the base URL for API calls. If not specified here, routers fall back to `api_endpoint` in their YAML config. If neither exists, an error is raised. This allows different models to use different API providers. See [main README](../README.md#configuring-api-endpoints-) for details.
 
 **Example**:
 ```json
@@ -237,10 +240,13 @@ python llmrouter/data/api_calling_evaluation.py --config llmrouter/data/sample_c
     "input_price": 0.20,
     "output_price": 0.20,
     "model": "qwen/qwen2.5-7b-instruct",
-    "service": "NVIDIA"
+    "service": "NVIDIA",
+    "api_endpoint": "https://integrate.api.nvidia.com/v1"
   }
 }
 ```
+
+**API Endpoint Resolution**: Per-model `api_endpoint` (this field) → router YAML `api_endpoint` → error if missing. This allows different models to use different providers. See [main README](../README.md#configuring-api-endpoints-) for details.
 
 ---
 
@@ -334,6 +340,8 @@ embedding_dim = embeddings[0].shape[0]  # e.g., 768
 |-------|------|-------------|---------|
 | `embedding` | array | Embedding vector (list of floats) | `[0.042, 0.090, -0.018, ...]` |
 
+**Note**: This file contains all fields from `default_llm.json` including `api_endpoint`, plus the `embedding` field. The `api_endpoint` field works the same way as in `default_llm.json` - it specifies the API endpoint URL for each model and follows the same resolution priority (per-model endpoint → router config endpoint → error).
+
 **Example**:
 ```json
 {
@@ -342,6 +350,7 @@ embedding_dim = embeddings[0].shape[0]  # e.g., 768
     "input_price": 0.2,
     "output_price": 0.2,
     "model": "qwen/qwen2.5-7b-instruct",
+    "api_endpoint": "https://integrate.api.nvidia.com/v1",
     "embedding": [0.04236221686005592, 0.09024723619222641, ...]
   }
 }

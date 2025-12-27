@@ -93,10 +93,16 @@ def init_providers() -> None:
         if not api_key:
             raise ValueError("Missing API key; set OPENAI_API_KEY/NVIDIA_API_KEY/NVAPI_KEY")
         api_base = _env_or(
-            "https://integrate.api.nvidia.com/v1",
+            None,
             "OPENAI_API_BASE",
             "NVIDIA_API_BASE",
         )
+        
+        if not api_base:
+            raise ValueError(
+                "API endpoint (api_base) not found. Please set OPENAI_API_BASE or "
+                "NVIDIA_API_BASE environment variable."
+            )
 
         # Initialize OpenAI client with timeout and retry (like api_test.py)
         _openai_client = get_client(
@@ -326,10 +332,16 @@ def call_openai_api(
     # Get API credentials from global client
     api_key = _env_or("", "OPENAI_API_KEY", "NVIDIA_API_KEY", "NVAPI_KEY")
     api_base = _env_or(
-        "https://integrate.api.nvidia.com/v1",
+        None,
         "OPENAI_API_BASE",
         "NVIDIA_API_BASE",
     )
+    
+    if not api_base:
+        raise ValueError(
+            "API endpoint (api_base) not found. Please set OPENAI_API_BASE or "
+            "NVIDIA_API_BASE environment variable."
+        )
 
     if not api_key:
         print("Error: Missing API key; set OPENAI_API_KEY/NVIDIA_API_KEY/NVAPI_KEY")
