@@ -77,7 +77,8 @@ class LLMMultiRoundRouter(MetaRouter):
         
         # API configuration for execution
         # Note: API keys are handled via environment variable API_KEYS in call_api()
-        self.api_endpoint = self.cfg.get("api_endpoint", "https://integrate.api.nvidia.com/v1")
+        # api_endpoint will be retrieved from llm_data per model, with fallback to config
+        self.api_endpoint = self.cfg.get("api_endpoint")  # Used as fallback only
 
     def route_single(self, query):
         """
@@ -421,8 +422,21 @@ class LLMMultiRoundRouter(MetaRouter):
                 decomp_output = ""
         else:
             # Fallback: use API call
+            # Get endpoint for base_model from llm_data or config
+            base_api_endpoint = None
+            if hasattr(self, 'llm_data') and self.llm_data and self.base_model in self.llm_data:
+                base_api_endpoint = self.llm_data[self.base_model].get("api_endpoint", self.api_endpoint)
+            else:
+                base_api_endpoint = self.api_endpoint
+            
+            if not base_api_endpoint:
+                raise ValueError(
+                    f"API endpoint not found for base_model '{self.base_model}'. "
+                    f"Please specify 'api_endpoint' in llm_data JSON for this model or in router YAML config."
+                )
+            
             request = {
-                "api_endpoint": self.api_endpoint,
+                "api_endpoint": base_api_endpoint,
                 "query": decomp_route_prompt,
                 "model_name": self.base_model,
                 "api_name": self.base_model
@@ -483,12 +497,34 @@ class LLMMultiRoundRouter(MetaRouter):
         """
         agent_prompt = self.AGENT_PROMPT.format(query=sub_query)
         
+        # Get API endpoint and model name from llm_data if available
+        api_model_name = model_name
+        api_endpoint = None
+        if hasattr(self, 'llm_data') and self.llm_data and model_name in self.llm_data:
+            api_model_name = self.llm_data[model_name].get("model", model_name)
+            # Get API endpoint from llm_data, fallback to router config
+            api_endpoint = self.llm_data[model_name].get(
+                "api_endpoint",
+                self.cfg.get("api_endpoint")
+            )
+        
+        # If still no endpoint found, try router config
+        if api_endpoint is None:
+            api_endpoint = self.cfg.get("api_endpoint")
+        
+        # Validate that we have an endpoint
+        if not api_endpoint:
+            raise ValueError(
+                f"API endpoint not found for model '{model_name}'. "
+                f"Please specify 'api_endpoint' in llm_data JSON for this model or in router YAML config."
+            )
+        
         # Use call_api from utils
         request = {
-            "api_endpoint": self.api_endpoint,
+            "api_endpoint": api_endpoint,
             "query": agent_prompt,
             "model_name": model_name,
-            "api_name": model_name
+            "api_name": api_model_name
         }
         
         try:
@@ -570,8 +606,21 @@ Format:
                 final_answer = ""
         else:
             # Fallback: use API call with base model
+            # Get endpoint for base_model from llm_data or config
+            base_api_endpoint = None
+            if hasattr(self, 'llm_data') and self.llm_data and self.base_model in self.llm_data:
+                base_api_endpoint = self.llm_data[self.base_model].get("api_endpoint", self.api_endpoint)
+            else:
+                base_api_endpoint = self.api_endpoint
+            
+            if not base_api_endpoint:
+                raise ValueError(
+                    f"API endpoint not found for base_model '{self.base_model}'. "
+                    f"Please specify 'api_endpoint' in llm_data JSON for this model or in router YAML config."
+                )
+            
             request = {
-                "api_endpoint": self.api_endpoint,
+                "api_endpoint": base_api_endpoint,
                 "query": agg_prompt,
                 "model_name": self.base_model,
                 "api_name": self.base_model

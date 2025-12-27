@@ -34,8 +34,20 @@ class RouterR1(MetaRouter):
 
         # Initialize hyperparameters
         self.model_id = self.cfg["hparam"]["model_id"]
-        self.api_base = self.cfg["hparam"]["api_base"]
-        self.api_key = self.cfg["hparam"]["api_key"]
+        self.api_base = self.cfg["hparam"].get("api_base")
+        self.api_key = self.cfg["hparam"].get("api_key")
+        
+        # Validate required API configuration
+        if not self.api_base:
+            raise ValueError(
+                "RouterR1 requires 'api_base' in hparam section of YAML config. "
+                "Please specify the API endpoint URL."
+            )
+        if not self.api_key:
+            raise ValueError(
+                "RouterR1 requires 'api_key' in hparam section of YAML config. "
+                "Please specify the API key."
+            )
 
     @staticmethod
     def get_query(text: str) -> Optional[str]:

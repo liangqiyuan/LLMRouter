@@ -241,9 +241,6 @@ class DCRouter(MetaRouter):
                 use_custom_batch = False
                 query_data = []
 
-        # Get API endpoint from config
-        api_endpoint = self.cfg.get("api_endpoint", "https://integrate.api.nvidia.com/v1")
-
         query_data_output = []
 
         if use_custom_batch:
@@ -301,10 +298,27 @@ class DCRouter(MetaRouter):
                     query_text_for_execution = original_query
 
                 # Step 3: Call API to get response
-                # Get the actual API model name from llm_data if available
+                # Get API endpoint and model name from llm_data if available
                 api_model_name = predicted_llm
+                api_endpoint = None
                 if hasattr(self, 'llm_data') and self.llm_data and predicted_llm in self.llm_data:
                     api_model_name = self.llm_data[predicted_llm].get("model", predicted_llm)
+                    # Get API endpoint from llm_data, fallback to router config
+                    api_endpoint = self.llm_data[predicted_llm].get(
+                        "api_endpoint",
+                        self.cfg.get("api_endpoint")
+                    )
+                
+                # If still no endpoint found, try router config
+                if api_endpoint is None:
+                    api_endpoint = self.cfg.get("api_endpoint")
+                
+                # Validate that we have an endpoint
+                if not api_endpoint:
+                    raise ValueError(
+                        f"API endpoint not found for model '{predicted_llm}'. "
+                        f"Please specify 'api_endpoint' in llm_data JSON for this model or in router YAML config."
+                    )
 
                 request = {
                     "api_endpoint": api_endpoint,
@@ -411,9 +425,27 @@ class DCRouter(MetaRouter):
                                 query_text_for_execution = query_text
 
                             # Step 3: Call API to get response
+                            # Get API endpoint and model name from llm_data if available
                             api_model_name = predicted_llm
+                            api_endpoint = None
                             if hasattr(self, 'llm_data') and self.llm_data and predicted_llm in self.llm_data:
                                 api_model_name = self.llm_data[predicted_llm].get("model", predicted_llm)
+                                # Get API endpoint from llm_data, fallback to router config
+                                api_endpoint = self.llm_data[predicted_llm].get(
+                                    "api_endpoint",
+                                    self.cfg.get("api_endpoint")
+                                )
+                            
+                            # If still no endpoint found, try router config
+                            if api_endpoint is None:
+                                api_endpoint = self.cfg.get("api_endpoint")
+                            
+                            # Validate that we have an endpoint
+                            if not api_endpoint:
+                                raise ValueError(
+                                    f"API endpoint not found for model '{predicted_llm}'. "
+                                    f"Please specify 'api_endpoint' in llm_data JSON for this model or in router YAML config."
+                                )
 
                             request = {
                                 "api_endpoint": api_endpoint,

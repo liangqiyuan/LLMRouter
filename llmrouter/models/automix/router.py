@@ -470,8 +470,8 @@ class AutomixRouter(MetaRouter):
                 print("Warning: No batch provided and no test data available for batch routing.")
                 return []
 
-        # Get API endpoint from config
-        api_endpoint = self.cfg.get("api_endpoint", "https://integrate.api.nvidia.com/v1")
+        # Get API endpoint from config (Note: Automix uses its own data_pipeline, so this is not currently used)
+        api_endpoint = self.cfg.get("api_endpoint")
 
         query_data_output = []
         for row in query_data:

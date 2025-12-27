@@ -115,6 +115,39 @@ export API_KEYS='your-api-key'
 - The environment variable must be set before running inference, chat, or data generation commands
 - For persistent setup, add the export command to your shell profile (e.g., `~/.bashrc` or `~/.zshrc`)
 
+### Configuring API Endpoints 🌐
+
+API endpoints can be specified at two levels (resolved in priority order):
+
+1. **Per-Model** (highest priority): `api_endpoint` field in LLM candidate JSON (`default_llm.json`)
+2. **Router-Level** (fallback): `api_endpoint` field in router YAML config
+3. **Error**: Raises descriptive error if neither is specified
+
+**LLM Candidate JSON** (per-model endpoints):
+```json
+{
+  "qwen2.5-7b-instruct": {
+    "model": "qwen/qwen2.5-7b-instruct",
+    "api_endpoint": "https://integrate.api.nvidia.com/v1",
+    ...
+  },
+  "custom-model": {
+    "model": "custom/model-name",
+    "api_endpoint": "https://api.customprovider.com/v1",
+    ...
+  }
+}
+```
+
+**Router YAML** (default endpoint):
+```yaml
+api_endpoint: 'https://integrate.api.nvidia.com/v1'  # Fallback for all models
+```
+
+**Benefits**: Different models can use different providers; easy migration; backward compatible with router configs.
+
+For details, see [Data Generation Pipeline documentation](llmrouter/data/README.md#llm-data-json-default_llmjson).
+
 ### Preparing Training Data 📊
 
 LLMRouter includes a complete data generation pipeline that transforms raw benchmark datasets into formatted routing data with embeddings. The pipeline supports 11 diverse benchmark datasets including Natural QA, Trivia QA, MMLU, GPQA, MBPP, HumanEval, GSM8K, CommonsenseQA, MATH, OpenbookQA, and ARC-Challenge.
@@ -319,6 +352,8 @@ data_path:
 hparam:
   # Your hyperparameters here
 
+# Optional: Default API endpoint (used as fallback if models don't specify their own)
+# Individual models can override this by specifying api_endpoint in the llm_data JSON file
 api_endpoint: 'https://integrate.api.nvidia.com/v1'
 ```
 

@@ -4,6 +4,7 @@
     "input_price": 0.2,
     "output_price": 0.2,
     "model": "qwen/qwen2.5-7b-instruct",
+    "api_endpoint": "https://integrate.api.nvidia.com/v1",
     "embedding": [
       0.04236221686005592,
       0.09024723619222641,
@@ -780,6 +781,7 @@
     "input_price": 0.2,
     "output_price": 0.2,
     "model": "google/codegemma-7b",
+    "api_endpoint": "https://integrate.api.nvidia.com/v1",
     "embedding": [
       0.0428781732916832,
       0.0569545216858387,
@@ -1556,6 +1558,7 @@
     "input_price": 0.1,
     "output_price": 0.1,
     "model": "google/gemma-2-9b-it",
+    "api_endpoint": "https://integrate.api.nvidia.com/v1",
     "embedding": [
       0.051419783383607864,
       0.07273638248443604,
@@ -2332,6 +2335,7 @@
     "input_price": 0.2,
     "output_price": 0.2,
     "model": "meta/llama-3.1-8b-instruct",
+    "api_endpoint": "https://integrate.api.nvidia.com/v1",
     "embedding": [
       0.020433802157640457,
       0.05793153867125511,
@@ -3108,6 +3112,7 @@
     "input_price": 0.2,
     "output_price": 0.2,
     "model": "nvidia/llama3-chatqa-1.5-8b",
+    "api_endpoint": "https://integrate.api.nvidia.com/v1",
     "embedding": [
       0.04964342340826988,
       0.02588597685098648,
@@ -3884,6 +3889,7 @@
     "input_price": 0.2,
     "output_price": 0.2,
     "model": "mistralai/mistral-7b-instruct-v0.3",
+    "api_endpoint": "https://integrate.api.nvidia.com/v1",
     "embedding": [
       0.08464633673429489,
       0.07734455913305283,
@@ -4660,6 +4666,7 @@
     "input_price": 0.9,
     "output_price": 0.9,
     "model": "nvidia/llama-3.3-nemotron-super-49b-v1",
+    "api_endpoint": "https://integrate.api.nvidia.com/v1",
     "embedding": [
       0.053803641349077225,
       0.09804631024599075,
@@ -5436,6 +5443,7 @@
     "input_price": 0.9,
     "output_price": 0.9,
     "model": "nvidia/llama-3.1-nemotron-51b-instruct",
+    "api_endpoint": "https://integrate.api.nvidia.com/v1",
     "embedding": [
       0.06019521877169609,
       0.03645261004567146,
@@ -6212,6 +6220,7 @@
     "input_price": 0.9,
     "output_price": 0.9,
     "model": "nvidia/llama3-chatqa-1.5-70b",
+    "api_endpoint": "https://integrate.api.nvidia.com/v1",
     "embedding": [
       0.05420674383640289,
       0.02408587373793125,
@@ -6988,6 +6997,7 @@
     "input_price": 0.9,
     "output_price": 0.9,
     "model": "meta/llama3-70b-instruct",
+    "api_endpoint": "https://integrate.api.nvidia.com/v1",
     "embedding": [
       0.09222182631492615,
       0.09084658324718475,
@@ -7764,6 +7774,7 @@
     "input_price": 0.6,
     "output_price": 0.6,
     "model": "mistralai/mixtral-8x7b-instruct-v0.1",
+    "api_endpoint": "https://integrate.api.nvidia.com/v1",
     "embedding": [
       0.06998459994792938,
       0.11655881255865097,
@@ -8540,6 +8551,7 @@
     "input_price": 1.2,
     "output_price": 1.2,
     "model": "mistralai/mixtral-8x22b-instruct-v0.1",
+    "api_endpoint": "https://integrate.api.nvidia.com/v1",
     "embedding": [
       0.0940401554107666,
       0.10240086913108826,
@@ -9316,6 +9328,7 @@
     "input_price": 1.8,
     "output_price": 1.8,
     "model": "writer/palmyra-creative-122b",
+    "api_endpoint": "https://integrate.api.nvidia.com/v1",
     "embedding": [
       0.03270306810736656,
       0.06555277854204178,
@@ -10092,6 +10105,7 @@
     "input_price": 0.3,
     "output_price": 0.3,
     "model": "nv-mistralai/mistral-nemo-12b-instruct",
+    "api_endpoint": "https://integrate.api.nvidia.com/v1",
     "embedding": [
       0.05753915756940842,
       0.05125778168439865,
