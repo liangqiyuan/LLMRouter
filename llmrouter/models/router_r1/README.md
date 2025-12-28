@@ -21,7 +21,7 @@ Rather than selecting a single model upfront, Router-R1 treats routing as an ite
 ### Architecture
 
 ```
-Query -> vLLM Generation -> <search>Query</search> -> Routing Pool -> <information>Results</information>
+Query -> vLLM Generation -> <search>Query, LLM candidate</search> -> Routing Pool -> <information>Results</information>
          |                                                                        |
     Reasoning Loop <--------------------------------------------------------------+
          |
