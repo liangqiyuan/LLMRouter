@@ -497,6 +497,24 @@ LLMRouter builds upon the excellent research from the community. We gratefully a
 
 We warmly welcome contributions from the community! A powerful open-source router framework requires the collective effort of everyone. If you have developed a new routing method, please consider submitting a PR to add it to LLMRouter. Together, we can build the most comprehensive LLM routing library!
 
+
+
+## 🤝 Contribution
+
+**We warmly welcome new contributors and sincerely thank all current contributors for their valuable contributions.**
+
+
+</br>
+
+<div align="center">
+  <a href="https://github.com/ulab-uiuc/LLMRouter/graphs/contributors">
+    <img src="https://contrib.rocks/image?repo=ulab-uiuc/LLMRouter" style="border-radius: 15px; box-shadow: 0 0 20px rgba(0, 217, 255, 0.3);" />
+  </a>
+</div>
+
+
+
+
 ## 📚 Citation
 
 If you find LLMRouter useful for your research or projects, please cite it as:
