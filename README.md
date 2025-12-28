@@ -277,10 +277,6 @@ Input file formats supported: `.txt` (one query per line), `.json` (list of stri
     </video>
 </div>
 
-<p align="center">
-    <strong>🎥 Full Demo:</strong> Complete walkthrough demonstrating the interactive chat interface, including query routing, model selection, and response generation.
-</p>
-
 Launch the chat interface (requires API keys - see [Setting Up API Keys](#-setting-up-api-keys) section):
 
 ```bash
