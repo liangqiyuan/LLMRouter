@@ -3,8 +3,12 @@
 </div>
 
 
+<div align="center">
+  <img src="assets/logo.png" alt="LLMRouter Logo" width="220">
+</div>
 
-<h1 align="center">LLMRouter: An Open-Source Library for LLM Routing</h1>
+
+<h1 align="center">🚀 LLMRouter: An Open-Source Library for LLM Routing</h1>
 
 <div align="center">
 
