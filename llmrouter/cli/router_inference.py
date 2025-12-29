@@ -106,6 +106,8 @@ ROUTERS_WITH_ANSWER_QUERY = {
 ROUTERS_REQUIRING_SPECIAL_ARGS = {
     "router_r1",
     "router-r1",
+    "llmmultiroundrouter",
+    "knnmultiroundrouter",
 }
 
 # Routers that are not supported
