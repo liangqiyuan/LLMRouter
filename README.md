@@ -324,7 +324,7 @@ python -m llmrouter.cli.router_inference --router knnrouter --config config.yaml
 python -m llmrouter.cli.router_chat --router knnrouter --config config.yaml
 ```
 
-## 🔧 Creating Custom Routers
+## 🔧 Creating Your Own Routers
 
 LLMRouter supports a **plugin system** that allows you to add custom router implementations without modifying the core codebase. This makes it easy to experiment with new routing strategies or domain-specific routers.
 
