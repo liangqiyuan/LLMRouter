@@ -60,7 +60,7 @@
 | `svmrouter` | ✅ | ✅ | Support Vector Machine based routing | [📖](llmrouter/models/svmrouter/README.md) |
 | `mlprouter` | ✅ | ✅ | Multi-Layer Perceptron based routing | [📖](llmrouter/models/mlprouter/README.md) |
 | `mfrouter` | ✅ | ✅ | Matrix Factorization based routing | [📖](llmrouter/models/mfrouter/README.md) |
-| `elorouter` | N/A | ✅ | Elo Rating based routing | [📖](llmrouter/models/elorouter/README.md) |
+| `elorouter` | ✅ | ✅ | Elo Rating based routing | [📖](llmrouter/models/elorouter/README.md) |
 | `routerdc` | ✅ | ✅ | Dual Contrastive learning based routing | [📖](llmrouter/models/routerdc/README.md) |
 | `automix` | N/A | ✅ | Automatic model mixing | [📖](llmrouter/models/automix/README.md) |
 | `hybrid_llm` | ✅ | ✅ | Hybrid LLM routing strategy | [📖](llmrouter/models/hybrid_llm/README.md) |
