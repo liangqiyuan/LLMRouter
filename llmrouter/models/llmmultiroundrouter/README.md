@@ -61,6 +61,43 @@ Query → LLM Decomposition+Routing → [(Sub-Query 1, Model A), (Sub-Query 2, M
 
 Requires `llm_data` with model descriptions for routing prompts.
 
+## CLI Usage
+
+The LLM Multi-Round Router can be used via the `llmrouter` command-line interface:
+
+### Inference
+
+> **Note**: This router does not require training - it uses zero-shot LLM prompts.
+
+```bash
+# Route a single query with decomposition
+llmrouter infer --router llmmultiroundrouter --config configs/model_config_test/llmmultiroundrouter.yaml \
+    --query "Compare neural networks and decision trees"
+
+# Route queries from a file
+llmrouter infer --router llmmultiroundrouter --config configs/model_config_test/llmmultiroundrouter.yaml \
+    --input queries.jsonl --output results.json
+
+# Route only (without calling LLM API)
+llmrouter infer --router llmmultiroundrouter --config configs/model_config_test/llmmultiroundrouter.yaml \
+    --query "Explain machine learning concepts" --route-only
+```
+
+### Interactive Chat
+
+```bash
+# Launch chat interface
+llmrouter chat --router llmmultiroundrouter --config configs/model_config_test/llmmultiroundrouter.yaml
+
+# Launch with custom port
+llmrouter chat --router llmmultiroundrouter --config configs/model_config_test/llmmultiroundrouter.yaml --port 8080
+
+# Create a public shareable link
+llmrouter chat --router llmmultiroundrouter --config configs/model_config_test/llmmultiroundrouter.yaml --share
+```
+
+---
+
 ## Usage Examples
 
 ### Inference

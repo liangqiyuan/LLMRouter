@@ -87,6 +87,43 @@ Supports any vLLM-compatible chat model:
 
 The router automatically detects the model family and applies the appropriate prompt template.
 
+## CLI Usage
+
+Router-R1 can be used via the `llmrouter` command-line interface:
+
+### Inference
+
+> **Note**: This router does not require training - it's a zero-shot agentic system.
+
+```bash
+# Route a single query with agentic reasoning
+llmrouter infer --router router_r1 --config configs/model_config_test/router_r1.yaml \
+    --query "Explain how transformers work in machine learning"
+
+# Route queries from a file
+llmrouter infer --router router_r1 --config configs/model_config_test/router_r1.yaml \
+    --input queries.jsonl --output results.json
+
+# Route only (without calling LLM API)
+llmrouter infer --router router_r1 --config configs/model_config_test/router_r1.yaml \
+    --query "What is quantum computing?" --route-only
+```
+
+### Interactive Chat
+
+```bash
+# Launch chat interface
+llmrouter chat --router router_r1 --config configs/model_config_test/router_r1.yaml
+
+# Launch with custom port
+llmrouter chat --router router_r1 --config configs/model_config_test/router_r1.yaml --port 8080
+
+# Create a public shareable link
+llmrouter chat --router router_r1 --config configs/model_config_test/router_r1.yaml --share
+```
+
+---
+
 ## Usage Examples
 
 ### Inference: Routing a Single Query

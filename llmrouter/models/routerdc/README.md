@@ -113,6 +113,51 @@ This dual approach ensures the router learns both:
 | `save_model_path` | Where to save the trained model | Training: saves best model checkpoint |
 | `load_model_path` | Model to load for inference | Testing: loads trained model weights |
 
+## CLI Usage
+
+RouterDC can be used via the `llmrouter` command-line interface:
+
+### Training
+
+```bash
+# Train the RouterDC (GPU recommended)
+llmrouter train --router routerdc --config configs/model_config_train/routerdc.yaml --device cuda
+
+# Train with quiet mode
+llmrouter train --router routerdc --config configs/model_config_train/routerdc.yaml --device cuda --quiet
+```
+
+### Inference
+
+```bash
+# Route a single query
+llmrouter infer --router routerdc --config configs/model_config_test/routerdc.yaml \
+    --query "Explain the concept of machine learning"
+
+# Route queries from a file
+llmrouter infer --router routerdc --config configs/model_config_test/routerdc.yaml \
+    --input queries.jsonl --output results.json
+
+# Route only (without calling LLM API)
+llmrouter infer --router routerdc --config configs/model_config_test/routerdc.yaml \
+    --query "What is deep learning?" --route-only
+```
+
+### Interactive Chat
+
+```bash
+# Launch chat interface
+llmrouter chat --router routerdc --config configs/model_config_test/routerdc.yaml
+
+# Launch with custom port
+llmrouter chat --router routerdc --config configs/model_config_test/routerdc.yaml --port 8080
+
+# Create a public shareable link
+llmrouter chat --router routerdc --config configs/model_config_test/routerdc.yaml --share
+```
+
+---
+
 ## Usage Examples
 
 ### Training the RouterDC

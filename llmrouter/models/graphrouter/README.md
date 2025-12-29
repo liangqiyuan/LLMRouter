@@ -85,6 +85,51 @@ Uses **edge masking** for training:
 | `save_model_path` | Where to save trained GNN model |
 | `load_model_path` | Model to load for inference |
 
+## CLI Usage
+
+The Graph Router can be used via the `llmrouter` command-line interface:
+
+### Training
+
+```bash
+# Train the Graph router (GPU recommended)
+llmrouter train --router graphrouter --config configs/model_config_train/graphrouter.yaml --device cuda
+
+# Train with quiet mode
+llmrouter train --router graphrouter --config configs/model_config_train/graphrouter.yaml --device cuda --quiet
+```
+
+### Inference
+
+```bash
+# Route a single query
+llmrouter infer --router graphrouter --config configs/model_config_test/graphrouter.yaml \
+    --query "Explain quantum mechanics"
+
+# Route queries from a file
+llmrouter infer --router graphrouter --config configs/model_config_test/graphrouter.yaml \
+    --input queries.jsonl --output results.json
+
+# Route only (without calling LLM API)
+llmrouter infer --router graphrouter --config configs/model_config_test/graphrouter.yaml \
+    --query "What is machine learning?" --route-only
+```
+
+### Interactive Chat
+
+```bash
+# Launch chat interface
+llmrouter chat --router graphrouter --config configs/model_config_test/graphrouter.yaml
+
+# Launch with custom port
+llmrouter chat --router graphrouter --config configs/model_config_test/graphrouter.yaml --port 8080
+
+# Create a public shareable link
+llmrouter chat --router graphrouter --config configs/model_config_test/graphrouter.yaml --share
+```
+
+---
+
 ## Usage Examples
 
 ### Training

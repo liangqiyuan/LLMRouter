@@ -104,6 +104,51 @@ During inference:
 - Calls large model if needed
 - No hyperparameters are tuned
 
+## CLI Usage
+
+The Automix Router can be used via the `llmrouter` command-line interface:
+
+### Training
+
+```bash
+# Train the Automix router (learns optimal routing policy)
+llmrouter train --router automix --config configs/model_config_train/automix.yaml
+
+# Train with quiet mode
+llmrouter train --router automix --config configs/model_config_train/automix.yaml --quiet
+```
+
+### Inference
+
+```bash
+# Route a single query (uses self-verification + POMDP policy)
+llmrouter infer --router automix --config configs/model_config_test/automix.yaml \
+    --query "Solve x^2 + 5x + 6 = 0"
+
+# Route queries from a file
+llmrouter infer --router automix --config configs/model_config_test/automix.yaml \
+    --input queries.jsonl --output results.json
+
+# Route only (without calling LLM API)
+llmrouter infer --router automix --config configs/model_config_test/automix.yaml \
+    --query "Explain quantum entanglement" --route-only
+```
+
+### Interactive Chat
+
+```bash
+# Launch chat interface
+llmrouter chat --router automix --config configs/model_config_test/automix.yaml
+
+# Launch with custom port
+llmrouter chat --router automix --config configs/model_config_test/automix.yaml --port 8080
+
+# Create a public shareable link
+llmrouter chat --router automix --config configs/model_config_test/automix.yaml --share
+```
+
+---
+
 ## Usage Examples
 
 ### Training the Automix Router

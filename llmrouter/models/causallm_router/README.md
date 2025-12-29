@@ -61,6 +61,51 @@ Query → Prompt Template → Finetuned LLM (vLLM) → Generated LLM Name → Pa
 | `max_new_tokens` | `32` | Max tokens to generate |
 | `temperature` | `0.1` | Sampling temperature (low for deterministic) |
 
+## CLI Usage
+
+The Causal LM Router can be used via the `llmrouter` command-line interface:
+
+### Training
+
+```bash
+# Train the Causal LM router (requires GPU)
+llmrouter train --router causallmrouter --config configs/model_config_train/causallm_router.yaml --device cuda
+
+# Train with quiet mode
+llmrouter train --router causallmrouter --config configs/model_config_train/causallm_router.yaml --device cuda --quiet
+```
+
+### Inference
+
+```bash
+# Route a single query
+llmrouter infer --router causallmrouter --config configs/model_config_test/causallm_router.yaml \
+    --query "Explain photosynthesis"
+
+# Route queries from a file
+llmrouter infer --router causallmrouter --config configs/model_config_test/causallm_router.yaml \
+    --input queries.jsonl --output results.json
+
+# Route only (without calling LLM API)
+llmrouter infer --router causallmrouter --config configs/model_config_test/causallm_router.yaml \
+    --query "What is machine learning?" --route-only
+```
+
+### Interactive Chat
+
+```bash
+# Launch chat interface
+llmrouter chat --router causallmrouter --config configs/model_config_test/causallm_router.yaml
+
+# Launch with custom port
+llmrouter chat --router causallmrouter --config configs/model_config_test/causallm_router.yaml --port 8080
+
+# Create a public shareable link
+llmrouter chat --router causallmrouter --config configs/model_config_test/causallm_router.yaml --share
+```
+
+---
+
 ## Usage Examples
 
 ### Training

@@ -64,6 +64,51 @@ The router supports three decision strategies:
 | `solver` | str | `"adam"` | Optimizer |
 | `max_iter` | int | `300` | Training iterations |
 
+## CLI Usage
+
+The Hybrid LLM Router can be used via the `llmrouter` command-line interface:
+
+### Training
+
+```bash
+# Train the Hybrid LLM router
+llmrouter train --router hybrid_llm --config configs/model_config_train/hybrid_llm.yaml
+
+# Train with quiet mode
+llmrouter train --router hybrid_llm --config configs/model_config_train/hybrid_llm.yaml --quiet
+```
+
+### Inference
+
+```bash
+# Route a single query
+llmrouter infer --router hybrid_llm --config configs/model_config_test/hybrid_llm.yaml \
+    --query "What is photosynthesis?"
+
+# Route queries from a file
+llmrouter infer --router hybrid_llm --config configs/model_config_test/hybrid_llm.yaml \
+    --input queries.jsonl --output results.json
+
+# Route only (without calling LLM API)
+llmrouter infer --router hybrid_llm --config configs/model_config_test/hybrid_llm.yaml \
+    --query "Explain neural networks" --route-only
+```
+
+### Interactive Chat
+
+```bash
+# Launch chat interface
+llmrouter chat --router hybrid_llm --config configs/model_config_test/hybrid_llm.yaml
+
+# Launch with custom port
+llmrouter chat --router hybrid_llm --config configs/model_config_test/hybrid_llm.yaml --port 8080
+
+# Create a public shareable link
+llmrouter chat --router hybrid_llm --config configs/model_config_test/hybrid_llm.yaml --share
+```
+
+---
+
 ## Usage Examples
 
 ### Training
