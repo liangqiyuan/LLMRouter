@@ -207,11 +207,6 @@ class AutomixRouter(MetaRouter):
         train_df = pd.read_json(train_path, lines=True, orient="records")
         test_df = pd.read_json(test_path, lines=True, orient="records")
         
-        # Apply min_samples limit for quick testing
-        # min_samples = hparam.get('min_samples')
-        # if min_samples:
-        #     train_df = train_df.head(min_samples)
-        #     test_df = test_df.head(min_samples)
 
         # Add split column if not present
         if "split" not in train_df.columns:
