@@ -71,17 +71,29 @@ Total cost = prompt_tokens + completion_tokens + route_tokens
 
 ### Environment Variables
 
-Instead of setting `api_base` and `api_key` in the YAML config, you can use environment variables:
+Instead of setting `api_base` and `api_key` in the YAML config, you can use the same environment variables as other routers:
 
-| Config Key | Environment Variables (checked in order) |
-|------------|------------------------------------------|
-| `api_key` | `OPENAI_API_KEY`, `NVIDIA_API_KEY`, `NVAPI_KEY`, `ROUTER_API_KEY` |
-| `api_base` | `OPENAI_API_BASE`, `NVIDIA_API_BASE`, `ROUTER_API_BASE` |
+| Config Key | Environment Variable |
+|------------|---------------------|
+| `api_key` | `API_KEYS` |
+| `api_base` | `API_BASE` |
+
+**`API_KEYS` Format** (same as other routers):
+```bash
+# JSON Array Format (recommended for multiple keys)
+export API_KEYS='["your-key-1", "your-key-2", "your-key-3"]'
+
+# Comma-Separated Format
+export API_KEYS='key1,key2,key3'
+
+# Single Key
+export API_KEYS='your-api-key'
+```
 
 **Example:**
 ```bash
-export OPENAI_API_KEY='your-api-key'
-export OPENAI_API_BASE='https://api.openai.com/v1'
+export API_KEYS='your-api-key'
+export API_BASE='https://api.openai.com/v1'
 
 # Now you can run without setting api_key/api_base in YAML
 llmrouter infer --router router_r1 --config configs/model_config_test/router_r1.yaml \

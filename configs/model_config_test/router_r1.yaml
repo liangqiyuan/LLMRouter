@@ -3,13 +3,13 @@
 # API Configuration:
 #   You can configure api_base and api_key either:
 #   1. In this YAML file (below)
-#   2. Via environment variables:
-#      - API Key: OPENAI_API_KEY, NVIDIA_API_KEY, NVAPI_KEY, or ROUTER_API_KEY
-#      - API Base: OPENAI_API_BASE, NVIDIA_API_BASE, or ROUTER_API_BASE
+#   2. Via environment variables (same as other routers):
+#      - API Key: API_KEYS
+#      - API Base: API_BASE
 #
 # Example:
-#   export OPENAI_API_KEY='your-api-key'
-#   export OPENAI_API_BASE='https://api.openai.com/v1'
+#   export API_KEYS='your-api-key'
+#   export API_BASE='https://api.openai.com/v1'
 
 
 data_path:
@@ -37,6 +37,6 @@ hparam:
   model_id: "ulab-ai/Router-R1-Qwen2.5-3B-Instruct"
 
   # API settings (leave empty to use environment variables)
-  api_base: ""    # or set OPENAI_API_BASE / NVIDIA_API_BASE env var
-  api_key: ""     # or set OPENAI_API_KEY / NVIDIA_API_KEY env var
+  api_base: ""    # or set API_BASE env var
+  api_key: ""     # or set API_KEYS env var
 

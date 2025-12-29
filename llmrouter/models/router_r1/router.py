@@ -12,13 +12,40 @@ from llmrouter.models.meta_router import MetaRouter
 from llmrouter.utils import generate_task_query, calculate_task_performance
 
 
-def _get_env_var(*names, default=None):
-    """Get first available environment variable from a list of names."""
-    for name in names:
-        val = os.environ.get(name)
-        if val:
-            return val
-    return default
+def _get_api_key_from_env():
+    """Get API key from API_KEYS environment variable.
+
+    Supports formats:
+    - JSON array: '["key1", "key2", "key3"]'
+    - Comma-separated: 'key1,key2,key3'
+    - Single key: 'your-api-key'
+
+    Returns the first key if multiple are provided.
+    """
+    api_keys = os.environ.get("API_KEYS")
+    if not api_keys:
+        return None
+
+    api_keys = api_keys.strip()
+
+    # Try JSON array format
+    if api_keys.startswith("["):
+        try:
+            import json
+            keys = json.loads(api_keys)
+            if keys and isinstance(keys, list):
+                return keys[0]
+        except json.JSONDecodeError:
+            pass
+
+    # Try comma-separated format
+    if "," in api_keys:
+        keys = [k.strip() for k in api_keys.split(",") if k.strip()]
+        if keys:
+            return keys[0]
+
+    # Single key
+    return api_keys
 
 
 class RouterR1(MetaRouter):
@@ -32,8 +59,8 @@ class RouterR1(MetaRouter):
         - Implements the `route_single()` method using the pre-trained model from official HF repo
 
     Environment Variables (fallback if not in YAML):
-        - API Key: OPENAI_API_KEY, NVIDIA_API_KEY, NVAPI_KEY, or ROUTER_API_KEY
-        - API Base: OPENAI_API_BASE, NVIDIA_API_BASE, or ROUTER_API_BASE
+        - API Key: API_KEYS (same as other routers)
+        - API Base: API_BASE
     """
 
     def __init__(self, yaml_path: str):
@@ -48,28 +75,24 @@ class RouterR1(MetaRouter):
         # Initialize hyperparameters
         self.model_id = self.cfg["hparam"]["model_id"]
 
-        # Get api_base from config or environment variables
-        self.api_base = self.cfg["hparam"].get("api_base") or _get_env_var(
-            "OPENAI_API_BASE", "NVIDIA_API_BASE", "ROUTER_API_BASE"
-        )
+        # Get api_base from config or environment variable
+        self.api_base = self.cfg["hparam"].get("api_base") or os.environ.get("API_BASE")
 
-        # Get api_key from config or environment variables
-        self.api_key = self.cfg["hparam"].get("api_key") or _get_env_var(
-            "OPENAI_API_KEY", "NVIDIA_API_KEY", "NVAPI_KEY", "ROUTER_API_KEY"
-        )
+        # Get api_key from config or environment variable (API_KEYS)
+        self.api_key = self.cfg["hparam"].get("api_key") or _get_api_key_from_env()
 
         # Validate required API configuration
         if not self.api_base:
             raise ValueError(
                 "RouterR1 requires 'api_base'. Either:\n"
                 "  1. Set in YAML config: hparam.api_base\n"
-                "  2. Set environment variable: OPENAI_API_BASE, NVIDIA_API_BASE, or ROUTER_API_BASE"
+                "  2. Set environment variable: export API_BASE='https://api.example.com/v1'"
             )
         if not self.api_key:
             raise ValueError(
                 "RouterR1 requires 'api_key'. Either:\n"
                 "  1. Set in YAML config: hparam.api_key\n"
-                "  2. Set environment variable: OPENAI_API_KEY, NVIDIA_API_KEY, NVAPI_KEY, or ROUTER_API_KEY"
+                "  2. Set environment variable: export API_KEYS='your-api-key'"
             )
 
     @staticmethod
