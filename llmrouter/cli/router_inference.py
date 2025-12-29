@@ -96,8 +96,9 @@ if RouterR1 is not None:
     ROUTER_REGISTRY["router_r1"] = RouterR1
     ROUTER_REGISTRY["router-r1"] = RouterR1
 
-# Routers that have answer_query method (full pipeline)
-ROUTERS_WITH_ANSWER_QUERY = {
+# Routers that have full pipeline in route_single (multi-round/agentic routers)
+# These routers return response directly from route_single, no separate API call needed
+MULTI_ROUND_ROUTERS = {
     "llmmultiroundrouter",
     "knnmultiroundrouter",
 }
@@ -213,11 +214,21 @@ def route_query(
         Dictionary containing routing result
     """
     router_name_lower = router_name.lower()
+
+    # Multi-round routers and RouterR1 don't support --route-only
+    # because they execute the full pipeline internally
     if router_name_lower in ROUTERS_REQUIRING_SPECIAL_ARGS:
         return {
             "success": False,
             "query": query,
             "error": f"Router '{router_name}' does not support --route-only; run without --route-only.",
+        }
+
+    if router_name_lower in MULTI_ROUND_ROUTERS:
+        return {
+            "success": False,
+            "query": query,
+            "error": f"Router '{router_name}' is a multi-round router with full pipeline; --route-only is not supported.",
         }
 
     try:
@@ -278,17 +289,32 @@ def infer_query(
     """
     router_name_lower = router_name.lower()
 
-    # Check if router has answer_query method (full pipeline)
-    if router_name_lower in ROUTERS_WITH_ANSWER_QUERY and hasattr(router_instance, "answer_query"):
-        # Use full pipeline: decompose + route + execute + aggregate
+    # Check if router is a multi-round router (full pipeline in route_single)
+    if router_name_lower in MULTI_ROUND_ROUTERS:
+        # Multi-round routers do full pipeline: decompose + route + execute + aggregate
+        # Their route_single returns response directly (string in chat mode, dict in eval mode)
         try:
-            final_answer = router_instance.answer_query(query, return_intermediate=False)
-            return {
-                "success": True,
-                "query": query,
-                "response": final_answer,
-                "method": "answer_query",
-            }
+            result = router_instance.route_single(query)
+            # route_single returns string for simple query, dict for evaluation mode
+            if isinstance(result, str):
+                return {
+                    "success": True,
+                    "query": query,
+                    "response": result,
+                    "model_name": "multi-round-pipeline",
+                    "method": "multi_round_router",
+                }
+            else:
+                # Dict result with response, tokens, etc.
+                return {
+                    "success": result.get("success", True),
+                    "query": query,
+                    "response": result.get("response", ""),
+                    "model_name": "multi-round-pipeline",
+                    "prompt_tokens": result.get("prompt_tokens", 0),
+                    "completion_tokens": result.get("completion_tokens", 0),
+                    "method": "multi_round_router",
+                }
         except Exception as e:
             import traceback
             return {
