@@ -95,11 +95,9 @@ class KNNMultiRoundRouter(MetaRouter):
         # api_endpoint will be retrieved from llm_data per model, with fallback to config
         self.api_endpoint = self.cfg.get("api_endpoint")  # Used as fallback only
         
-        # Load KNN model path for routing
-        project_root = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
-        self.knn_model_path = os.path.join(project_root, self.cfg["model_path"]["load_model_path"])
-        
         # Lazy loading flag for KNN model
+        # Note: Model path is constructed lazily in _load_knn_model_if_needed() to avoid
+        # accessing load_model_path during training when it doesn't exist
         self.knn_model_loaded = False
 
     def _load_knn_model_if_needed(self):
@@ -107,13 +105,28 @@ class KNNMultiRoundRouter(MetaRouter):
         if self.knn_model_loaded:
             return
         
+        # Construct model path dynamically (only when needed, not during __init__)
+        # This allows training to work when load_model_path doesn't exist in config
+        project_root = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
+        load_model_path = self.cfg.get("model_path", {}).get("load_model_path")
+        
+        if not load_model_path:
+            raise RuntimeError(
+                "load_model_path not found in config. "
+                "Please ensure the model is trained and load_model_path is specified in the config."
+            )
+        
+        knn_model_path = os.path.join(project_root, load_model_path)
+        
         try:
-            self.knn_model = load_model(self.knn_model_path)
+            self.knn_model = load_model(knn_model_path)
             self.knn_model_loaded = True
-            print(f"[KNNMultiRoundRouter] Loaded KNN model from {self.knn_model_path}")
+            print(f"[KNNMultiRoundRouter] Loaded KNN model from {knn_model_path}")
         except Exception as e:
-            print(f"Error loading KNN model from {self.knn_model_path}: {e}")
-            raise RuntimeError(f"Failed to load KNN model. Please ensure the model is trained and saved at {self.knn_model_path}")
+            print(f"Error loading KNN model from {knn_model_path}: {e}")
+            raise RuntimeError(
+                f"Failed to load KNN model. Please ensure the model is trained and saved at {knn_model_path}"
+            )
 
     def route_single(self, query):
         """
