@@ -148,7 +148,11 @@ class RouterR1(MetaRouter):
 
         # Model path and tokenizer
         tokenizer = AutoTokenizer.from_pretrained(self.model_id, trust_remote_code=True)
-        tensor_parallel_size = max(1, torch.cuda.device_count())
+
+        # Use single GPU by default (tensor_parallel_size=1)
+        # Multi-GPU parallelism requires attention heads divisible by GPU count
+        # For 3B models, single GPU is sufficient
+        tensor_parallel_size = 1
         llm = LLM(model=self.model_id, dtype="float16", tensor_parallel_size=tensor_parallel_size)
 
         curr_route_template = '\n{output_text}\n<information>{route_results}</information>\n'
