@@ -242,7 +242,7 @@ llmrouter train --router knnrouter --config configs/model_config_train/knnrouter
 CUDA_VISIBLE_DEVICES=2 llmrouter train --router mlprouter --config configs/model_config_train/mlprouter.yaml --device cuda
 
 # Train MF router quietly
-CUDA_VISIBLE_DEVICES=1 llmrouter train --router mfrouter --config configs/model_config_train/mfrouter.yaml --quiet
+CUDA_VISIBLE_DEVICES=1 llmrouter train --router mfrouter --config configs/model_config_train/mfrouter.yaml --device cuda --quiet
 ```
 
 ### Running Inference
