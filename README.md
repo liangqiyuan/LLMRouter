@@ -239,10 +239,10 @@ Train various router models with your configuration:
 llmrouter train --router knnrouter --config configs/model_config_train/knnrouter.yaml
 
 # Train MLP router with GPU
-llmrouter train --router mlprouter --config configs/model_config_train/mlprouter.yaml --device cuda
+CUDA_VISIBLE_DEVICES=2 llmrouter train --router mlprouter --config configs/model_config_train/mlprouter.yaml --device cuda
 
 # Train MF router quietly
-llmrouter train --router mfrouter --config configs/model_config_train/mfrouter.yaml --quiet
+CUDA_VISIBLE_DEVICES=1 llmrouter train --router mfrouter --config configs/model_config_train/mfrouter.yaml --quiet
 ```
 
 ### Running Inference
