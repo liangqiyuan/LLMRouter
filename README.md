@@ -102,8 +102,14 @@ cd LLMRouter
 conda create -n llmrouter python=3.10
 conda activate llmrouter
 
-# Install the package
+# Install the package (base installation)
 pip install -e .
+
+# Optional: Install with RouterR1 support (requires GPU)
+pip install -e ".[router-r1]"
+
+# Optional: Install all optional dependencies
+pip install -e ".[all]"
 ```
 
 #### Install from PyPI

@@ -50,6 +50,12 @@ classifiers = [
 "Source" = "https://github.com/ulab-uiuc/LLMRouter"
 "Bug Tracker" = "https://github.com/ulab-uiuc/LLMRouter/issues"
 
+[project.optional-dependencies]
+# RouterR1 requires vLLM (GPU only)
+router-r1 = ["vllm>=0.4", "openai>=1.0"]
+# All optional dependencies
+all = ["vllm>=0.4", "openai>=1.0"]
+
 [project.scripts]
 llmrouter = "llmrouter.cli.router_main:main"
 
