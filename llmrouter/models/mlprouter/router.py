@@ -3,10 +3,70 @@ import os
 import numpy as np
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 import copy
-from sklearn.neural_network import MLPClassifier
 from llmrouter.models.meta_router import MetaRouter
 from llmrouter.utils import load_model, get_longformer_embedding, call_api, generate_task_query, calculate_task_performance
+
+
+class MLPClassifierNN(nn.Module):
+    """
+    PyTorch MLP Classifier for routing.
+    Replaces sklearn MLPClassifier to enable CUDA support.
+    """
+
+    def __init__(self, input_dim: int, hidden_layer_sizes: List[int], num_classes: int, activation: str = "relu"):
+        super().__init__()
+
+        self.activation_name = activation
+        layers = []
+        prev_dim = input_dim
+
+        # Build hidden layers
+        for hidden_dim in hidden_layer_sizes:
+            layers.append(nn.Linear(prev_dim, hidden_dim))
+            prev_dim = hidden_dim
+
+        # Output layer
+        layers.append(nn.Linear(prev_dim, num_classes))
+
+        self.layers = nn.ModuleList(layers)
+
+    def _get_activation(self):
+        """Get activation function based on name."""
+        if self.activation_name == "relu":
+            return F.relu
+        elif self.activation_name == "tanh":
+            return torch.tanh
+        elif self.activation_name == "logistic":
+            return torch.sigmoid
+        elif self.activation_name == "identity":
+            return lambda x: x
+        else:
+            return F.relu
+
+    @property
+    def device(self):
+        return next(self.parameters()).device
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        """Forward pass through the MLP."""
+        activation = self._get_activation()
+
+        # Hidden layers with activation
+        for layer in self.layers[:-1]:
+            x = activation(layer(x))
+
+        # Output layer (no activation, will use CrossEntropyLoss)
+        x = self.layers[-1](x)
+        return x
+
+    def predict(self, x: torch.Tensor) -> torch.Tensor:
+        """Predict class indices."""
+        self.eval()
+        with torch.no_grad():
+            logits = self.forward(x)
+            return torch.argmax(logits, dim=-1)
 
 
 class MLPRouter(MetaRouter):
@@ -17,21 +77,17 @@ class MLPRouter(MetaRouter):
     classifier to select the most suitable language model based on
     query embeddings.
 
+    Now uses PyTorch nn.Module for CUDA support.
+
     YAML Configuration Example:
     ---------------------------
-    llm_data:
-      GPT4:
-        size: "175B"
-        embedding: [0.12, 0.33, 0.78, 0.44]
-      Claude3:
-        size: "52B"
-        embedding: [0.10, 0.25, 0.70, 0.50]
-    optional:
-      mlp_model_path: "configs/mlp_model.pkl"
-      hidden_layer_sizes: [64, 32]
+    hparam:
+      hidden_layer_sizes: [128, 64]
       activation: "relu"
-      solver: "adam"
-      max_iter: 300
+      lr: 0.001
+      epochs: 100
+      batch_size: 32
+      alpha: 0.0001  # L2 regularization (weight decay)
     """
 
     def __init__(self, yaml_path: str):
@@ -43,33 +99,89 @@ class MLPRouter(MetaRouter):
 
         Steps:
             1. Loads configuration and metadata from MetaRouter.
-            2. Builds an MLP classifier with the specified hyperparameters.
-            3. Prepares the training embeddings and corresponding model labels.
+            2. Prepares the training embeddings and corresponding model labels.
+            3. Builds class mappings for model names.
         """
         dummy_model = nn.Identity()
         super().__init__(model=dummy_model, yaml_path=yaml_path)
 
-        mlp_params = self.cfg["hparam"]
-        self.mlp_model = MLPClassifier(**mlp_params)
+        # Get hyperparameters
+        self.hparam = self.cfg["hparam"]
 
+        # Extract best model for each query
         routing_best = self.routing_data_train.loc[
             self.routing_data_train.groupby("query")["performance"].idxmax()
         ].reset_index(drop=True)
 
+        # Build class mappings
+        model_names = routing_best["model_name"].unique().tolist()
+        self.model_to_idx = {m: i for i, m in enumerate(model_names)}
+        self.idx_to_model = {i: m for m, i in self.model_to_idx.items()}
+        self.num_classes = len(model_names)
+
+        # Prepare training data
         query_embedding_id = routing_best["embedding_id"].tolist()
-        self.query_embedding_list = [self.query_embedding_data[i].numpy() for i in query_embedding_id]
+        # Use vectorized stacking for faster conversion
+        embeddings_tensor = torch.stack([self.query_embedding_data[i] for i in query_embedding_id])
+        self.query_embedding_list = embeddings_tensor  # Keep as tensor
         self.model_name_list = routing_best["model_name"].tolist()
+        # Convert labels to indices
+        self.label_indices = torch.tensor([self.model_to_idx[m] for m in self.model_name_list], dtype=torch.long)
+
+        # Get input dimension from embeddings
+        self.input_dim = self.query_embedding_list.shape[1]
+
+        # Build MLP model
+        hidden_layer_sizes = self.hparam.get("hidden_layer_sizes", [128, 64])
+        activation = self.hparam.get("activation", "relu")
+        self.mlp_model = MLPClassifierNN(
+            input_dim=self.input_dim,
+            hidden_layer_sizes=hidden_layer_sizes,
+            num_classes=self.num_classes,
+            activation=activation
+        )
+
+    def _load_mlp_model(self, device: str = "cpu"):
+        """Load trained MLP model from file."""
+        state_dict = load_model(self.load_model_path)
+
+        # Handle both old sklearn format and new PyTorch format
+        if isinstance(state_dict, dict) and any(k.startswith("layers") for k in state_dict.keys()):
+            # PyTorch state dict
+            hidden_layer_sizes = self.hparam.get("hidden_layer_sizes", [128, 64])
+            activation = self.hparam.get("activation", "relu")
+            model = MLPClassifierNN(
+                input_dim=self.input_dim,
+                hidden_layer_sizes=hidden_layer_sizes,
+                num_classes=self.num_classes,
+                activation=activation
+            )
+            model.load_state_dict(state_dict)
+            model.to(device)
+            model.eval()
+            return model, "pytorch"
+        else:
+            # Old sklearn model (backward compatibility)
+            return state_dict, "sklearn"
 
     def route_single(self, query: Dict[str, Any]) -> Dict[str, Any]:
         """
         Route a single query using the trained MLP model.
         """
         project_root = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
-        load_model_path = os.path.join(project_root, self.cfg["model_path"]["load_model_path"])
-        self.mlp_model = load_model(load_model_path)
+        self.load_model_path = os.path.join(project_root, self.cfg["model_path"]["load_model_path"])
+        model, model_type = self._load_mlp_model()
 
-        query_embedding = [get_longformer_embedding(query["query"]).numpy()]
-        model_name = self.mlp_model.predict(query_embedding)[0]
+        query_embedding = get_longformer_embedding(query["query"])
+
+        if model_type == "pytorch":
+            with torch.no_grad():
+                emb_tensor = query_embedding.unsqueeze(0).to(model.device)
+                pred_idx = model.predict(emb_tensor).item()
+                model_name = self.idx_to_model[pred_idx]
+        else:
+            # sklearn fallback
+            model_name = model.predict([query_embedding.numpy()])[0]
 
         query_output = copy.copy(query)
         query_output["model_name"] = model_name
@@ -97,8 +209,8 @@ class MLPRouter(MetaRouter):
         """
         # Load model once
         project_root = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
-        load_model_path = os.path.join(project_root, self.cfg["model_path"]["load_model_path"])
-        self.mlp_model = load_model(load_model_path)
+        self.load_model_path = os.path.join(project_root, self.cfg["model_path"]["load_model_path"])
+        model, model_type = self._load_mlp_model()
 
         # Determine which data to use
         if batch is not None:
@@ -123,8 +235,17 @@ class MLPRouter(MetaRouter):
                 row_task_name = task_name
 
             # Step 1: Route the query
-            query_embedding = [get_longformer_embedding(original_query).numpy()]
-            model_name = self.mlp_model.predict(query_embedding)[0]
+            query_embedding = get_longformer_embedding(original_query)
+
+            if model_type == "pytorch":
+                with torch.no_grad():
+                    emb_tensor = query_embedding.unsqueeze(0).to(model.device)
+                    pred_idx = model.predict(emb_tensor).item()
+                    model_name = self.idx_to_model[pred_idx]
+            else:
+                # sklearn fallback
+                model_name = model.predict([query_embedding.numpy()])[0]
+
             row_copy["model_name"] = model_name
 
             # Step 2: Format query if task_name is provided
@@ -154,11 +275,11 @@ class MLPRouter(MetaRouter):
                     "api_endpoint",
                     self.cfg.get("api_endpoint")
                 )
-            
+
             # If still no endpoint found, try router config
             if api_endpoint is None:
                 api_endpoint = self.cfg.get("api_endpoint")
-            
+
             # Validate that we have an endpoint
             if not api_endpoint:
                 raise ValueError(
@@ -209,4 +330,3 @@ class MLPRouter(MetaRouter):
             query_data_output.append(row_copy)
 
         return query_data_output
-
