@@ -97,6 +97,51 @@ During inference, the router:
 - Applies the decision function to predict the optimal LLM
 - No hyperparameters are tuned during inference
 
+## CLI Usage
+
+The SVM Router can be used via the `llmrouter` command-line interface:
+
+### Training
+
+```bash
+# Train the SVM router
+llmrouter train --router svmrouter --config configs/model_config_train/svmrouter.yaml
+
+# Train with quiet mode
+llmrouter train --router svmrouter --config configs/model_config_train/svmrouter.yaml --quiet
+```
+
+### Inference
+
+```bash
+# Route a single query
+llmrouter infer --router svmrouter --config configs/model_config_test/svmrouter.yaml \
+    --query "Explain the theory of relativity"
+
+# Route queries from a file
+llmrouter infer --router svmrouter --config configs/model_config_test/svmrouter.yaml \
+    --input queries.jsonl --output results.json
+
+# Route only (without calling LLM API)
+llmrouter infer --router svmrouter --config configs/model_config_test/svmrouter.yaml \
+    --query "What is machine learning?" --route-only
+```
+
+### Interactive Chat
+
+```bash
+# Launch chat interface
+llmrouter chat --router svmrouter --config configs/model_config_test/svmrouter.yaml
+
+# Launch with custom port
+llmrouter chat --router svmrouter --config configs/model_config_test/svmrouter.yaml --port 8080
+
+# Create a public shareable link
+llmrouter chat --router svmrouter --config configs/model_config_test/svmrouter.yaml --share
+```
+
+---
+
 ## Usage Examples
 
 ### Training the SVM Router

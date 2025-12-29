@@ -89,6 +89,51 @@ During inference:
 - Performs nearest neighbor search for each new query
 - No retraining needed — can add new examples instantly
 
+## CLI Usage
+
+The KNN Router can be used via the `llmrouter` command-line interface:
+
+### Training
+
+```bash
+# "Train" the KNN router (builds search index)
+llmrouter train --router knnrouter --config configs/model_config_train/knnrouter.yaml
+
+# Train with quiet mode
+llmrouter train --router knnrouter --config configs/model_config_train/knnrouter.yaml --quiet
+```
+
+### Inference
+
+```bash
+# Route a single query
+llmrouter infer --router knnrouter --config configs/model_config_test/knnrouter.yaml \
+    --query "What are the ethical implications of AI?"
+
+# Route queries from a file
+llmrouter infer --router knnrouter --config configs/model_config_test/knnrouter.yaml \
+    --input queries.jsonl --output results.json
+
+# Route only (without calling LLM API)
+llmrouter infer --router knnrouter --config configs/model_config_test/knnrouter.yaml \
+    --query "Explain neural networks" --route-only
+```
+
+### Interactive Chat
+
+```bash
+# Launch chat interface
+llmrouter chat --router knnrouter --config configs/model_config_test/knnrouter.yaml
+
+# Launch with custom port
+llmrouter chat --router knnrouter --config configs/model_config_test/knnrouter.yaml --port 8080
+
+# Create a public shareable link
+llmrouter chat --router knnrouter --config configs/model_config_test/knnrouter.yaml --share
+```
+
+---
+
 ## Usage Examples
 
 ### "Training" the KNN Router

@@ -84,6 +84,54 @@ Where:
 | `save_model_path` | Where to save trained model | Training: saves model state_dict as `.pkl` |
 | `load_model_path` | Model to load for inference | Testing: loads trained model weights |
 
+## CLI Usage
+
+The MF Router can be used via the `llmrouter` command-line interface:
+
+### Training
+
+```bash
+# Train the MF router
+llmrouter train --router mfrouter --config configs/model_config_train/mfrouter.yaml
+
+# Train with GPU acceleration
+llmrouter train --router mfrouter --config configs/model_config_train/mfrouter.yaml --device cuda
+
+# Train with quiet mode
+llmrouter train --router mfrouter --config configs/model_config_train/mfrouter.yaml --quiet
+```
+
+### Inference
+
+```bash
+# Route a single query
+llmrouter infer --router mfrouter --config configs/model_config_test/mfrouter.yaml \
+    --query "Explain neural networks"
+
+# Route queries from a file
+llmrouter infer --router mfrouter --config configs/model_config_test/mfrouter.yaml \
+    --input queries.jsonl --output results.json
+
+# Route only (without calling LLM API)
+llmrouter infer --router mfrouter --config configs/model_config_test/mfrouter.yaml \
+    --query "What is deep learning?" --route-only
+```
+
+### Interactive Chat
+
+```bash
+# Launch chat interface
+llmrouter chat --router mfrouter --config configs/model_config_test/mfrouter.yaml
+
+# Launch with custom port
+llmrouter chat --router mfrouter --config configs/model_config_test/mfrouter.yaml --port 8080
+
+# Create a public shareable link
+llmrouter chat --router mfrouter --config configs/model_config_test/mfrouter.yaml --share
+```
+
+---
+
 ## Usage Examples
 
 ### Training the MF Router

@@ -89,6 +89,54 @@ During inference, the router uses:
 
 No hyperparameters are tuned during inference — all decisions are made by the trained model.
 
+## CLI Usage
+
+The MLP Router can be used via the `llmrouter` command-line interface:
+
+### Training
+
+```bash
+# Train the MLP router
+llmrouter train --router mlprouter --config configs/model_config_train/mlprouter.yaml
+
+# Train with GPU acceleration
+llmrouter train --router mlprouter --config configs/model_config_train/mlprouter.yaml --device cuda
+
+# Train with quiet mode (less verbose output)
+llmrouter train --router mlprouter --config configs/model_config_train/mlprouter.yaml --quiet
+```
+
+### Inference
+
+```bash
+# Route a single query
+llmrouter infer --router mlprouter --config configs/model_config_test/mlprouter.yaml \
+    --query "What is machine learning?"
+
+# Route queries from a file
+llmrouter infer --router mlprouter --config configs/model_config_test/mlprouter.yaml \
+    --input queries.jsonl --output results.json
+
+# Route only (without calling LLM API)
+llmrouter infer --router mlprouter --config configs/model_config_test/mlprouter.yaml \
+    --query "Explain neural networks" --route-only
+```
+
+### Interactive Chat
+
+```bash
+# Launch chat interface
+llmrouter chat --router mlprouter --config configs/model_config_test/mlprouter.yaml
+
+# Launch with custom port
+llmrouter chat --router mlprouter --config configs/model_config_test/mlprouter.yaml --port 8080
+
+# Create a public shareable link
+llmrouter chat --router mlprouter --config configs/model_config_test/mlprouter.yaml --share
+```
+
+---
+
 ## Usage Examples
 
 ### Training the MLP Router

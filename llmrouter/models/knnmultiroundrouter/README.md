@@ -56,6 +56,51 @@ Query → Decomposition → [Sub-Query 1, Sub-Query 2, ...]
 | `use_local_llm` | bool | `false` | Use local vLLM (true) or API (false) |
 | `api_endpoint` | str | - | API endpoint for sub-query execution |
 
+## CLI Usage
+
+The KNN Multi-Round Router can be used via the `llmrouter` command-line interface:
+
+### Training
+
+```bash
+# Train the KNN Multi-Round router (builds KNN index)
+llmrouter train --router knnmultiroundrouter --config configs/model_config_train/knnmultiroundrouter.yaml
+
+# Train with quiet mode
+llmrouter train --router knnmultiroundrouter --config configs/model_config_train/knnmultiroundrouter.yaml --quiet
+```
+
+### Inference
+
+```bash
+# Route a single query with decomposition
+llmrouter infer --router knnmultiroundrouter --config configs/model_config_test/knnmultiroundrouter.yaml \
+    --query "Explain climate change and its causes"
+
+# Route queries from a file
+llmrouter infer --router knnmultiroundrouter --config configs/model_config_test/knnmultiroundrouter.yaml \
+    --input queries.jsonl --output results.json
+
+# Route only (without calling LLM API)
+llmrouter infer --router knnmultiroundrouter --config configs/model_config_test/knnmultiroundrouter.yaml \
+    --query "What causes earthquakes?" --route-only
+```
+
+### Interactive Chat
+
+```bash
+# Launch chat interface
+llmrouter chat --router knnmultiroundrouter --config configs/model_config_test/knnmultiroundrouter.yaml
+
+# Launch with custom port
+llmrouter chat --router knnmultiroundrouter --config configs/model_config_test/knnmultiroundrouter.yaml --port 8080
+
+# Create a public shareable link
+llmrouter chat --router knnmultiroundrouter --config configs/model_config_test/knnmultiroundrouter.yaml --share
+```
+
+---
+
 ## Usage Examples
 
 ### Inference (Chat Mode)

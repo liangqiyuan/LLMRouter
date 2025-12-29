@@ -40,6 +40,43 @@ Requires only `llm_data` with model sizes:
 
 Router will select "Qwen2.5-3B" (smallest).
 
+## CLI Usage
+
+The Smallest LLM Router can be used via the `llmrouter` command-line interface:
+
+### Inference
+
+> **Note**: This router does not require training - it's a zero-shot heuristic.
+
+```bash
+# Route a single query (always selects smallest model)
+llmrouter infer --router smallest_llm --config configs/model_config_test/smallest_llm.yaml \
+    --query "What is machine learning?"
+
+# Route queries from a file
+llmrouter infer --router smallest_llm --config configs/model_config_test/smallest_llm.yaml \
+    --input queries.jsonl --output results.json
+
+# Route only (without calling LLM API)
+llmrouter infer --router smallest_llm --config configs/model_config_test/smallest_llm.yaml \
+    --query "Explain neural networks" --route-only
+```
+
+### Interactive Chat
+
+```bash
+# Launch chat interface
+llmrouter chat --router smallest_llm --config configs/model_config_test/smallest_llm.yaml
+
+# Launch with custom port
+llmrouter chat --router smallest_llm --config configs/model_config_test/smallest_llm.yaml --port 8080
+
+# Create a public shareable link
+llmrouter chat --router smallest_llm --config configs/model_config_test/smallest_llm.yaml --share
+```
+
+---
+
 ## Usage
 
 ```python

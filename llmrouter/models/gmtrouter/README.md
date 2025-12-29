@@ -167,6 +167,51 @@ After extraction, you should have:
 - **mmlu**: Massive Multitask Language Understanding benchmark
 - **mt_bench**: Multi-turn conversation benchmark
 
+## CLI Usage
+
+GMTRouter can be used via the `llmrouter` command-line interface:
+
+### Training
+
+```bash
+# Train the GMTRouter (GPU recommended)
+llmrouter train --router gmtrouter --config configs/model_config_train/gmtrouter.yaml --device cuda
+
+# Train with quiet mode
+llmrouter train --router gmtrouter --config configs/model_config_train/gmtrouter.yaml --device cuda --quiet
+```
+
+### Inference
+
+```bash
+# Route a single query
+llmrouter infer --router gmtrouter --config configs/model_config_test/gmtrouter.yaml \
+    --query "Explain quantum computing in simple terms"
+
+# Route queries from a file
+llmrouter infer --router gmtrouter --config configs/model_config_test/gmtrouter.yaml \
+    --input queries.jsonl --output results.json
+
+# Route only (without calling LLM API)
+llmrouter infer --router gmtrouter --config configs/model_config_test/gmtrouter.yaml \
+    --query "Solve this calculus problem" --route-only
+```
+
+### Interactive Chat
+
+```bash
+# Launch chat interface
+llmrouter chat --router gmtrouter --config configs/model_config_test/gmtrouter.yaml
+
+# Launch with custom port
+llmrouter chat --router gmtrouter --config configs/model_config_test/gmtrouter.yaml --port 8080
+
+# Create a public shareable link
+llmrouter chat --router gmtrouter --config configs/model_config_test/gmtrouter.yaml --share
+```
+
+---
+
 ## Training GMTRouter
 
 ### ✅ Training Fully Integrated into LLMRouter

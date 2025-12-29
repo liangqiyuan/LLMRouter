@@ -124,6 +124,51 @@ During inference:
 - Routes **all queries** to this single model
 - No query-specific routing decisions
 
+## CLI Usage
+
+The ELO Router can be used via the `llmrouter` command-line interface:
+
+### Training
+
+```bash
+# Compute Elo rankings
+llmrouter train --router elorouter --config configs/model_config_train/elorouter.yaml
+
+# Train with quiet mode
+llmrouter train --router elorouter --config configs/model_config_train/elorouter.yaml --quiet
+```
+
+### Inference
+
+```bash
+# Route a single query (always selects highest-rated model)
+llmrouter infer --router elorouter --config configs/model_config_test/elorouter.yaml \
+    --query "What is the meaning of life?"
+
+# Route queries from a file
+llmrouter infer --router elorouter --config configs/model_config_test/elorouter.yaml \
+    --input queries.jsonl --output results.json
+
+# Route only (without calling LLM API)
+llmrouter infer --router elorouter --config configs/model_config_test/elorouter.yaml \
+    --query "Explain quantum mechanics" --route-only
+```
+
+### Interactive Chat
+
+```bash
+# Launch chat interface
+llmrouter chat --router elorouter --config configs/model_config_test/elorouter.yaml
+
+# Launch with custom port
+llmrouter chat --router elorouter --config configs/model_config_test/elorouter.yaml --port 8080
+
+# Create a public shareable link
+llmrouter chat --router elorouter --config configs/model_config_test/elorouter.yaml --share
+```
+
+---
+
 ## Usage Examples
 
 ### Training the ELO Router
