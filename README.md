@@ -555,7 +555,13 @@ We warmly welcome contributions from the community! A powerful open-source route
 
 ## 🤝 Contribution
 
-**We warmly welcome new contributors and sincerely thank all current contributors for their valuable contributions.**
+We warmly welcome contributions from the community. **LLMRouter is a living, extensible research framework**, and its impact grows through the creativity and expertise of its contributors.
+
+If you have developed a **new routing strategy, learning objective, training paradigm, or evaluation protocol**, we strongly encourage you to submit a pull request to integrate it into LLMRouter. **All accepted contributions are explicitly credited**, documented, and made available to a broad research and practitioner audience.
+
+Contributing to LLMRouter is more than adding code. It is an opportunity to **increase the visibility, adoption, and long-term impact of your work** within the LLM systems community. Together, we aim to build the **most comprehensive and extensible open-source library for LLM routing**.
+
+> **Notable contributions** may be highlighted in documentation, examples, benchmarks, or future releases.
 
 
 </br>
