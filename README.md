@@ -48,6 +48,7 @@
 - [Running Inference via a Router](#running-inference)
 - [Interactive Chat Interface with a Router](#interactive-chat-interface)
 - [Creating Your Own Routers](#-creating-custom-routers)
+- [Creating Custom Tasks](#-creating-custom-tasks)
 - [Acknowledgments](#-acknowledgments)
 - [Citation](#-citation)
 
@@ -465,6 +466,62 @@ def route_single(self, query_input):
         if info['capability'] >= difficulty:
             return {"model_name": model_name}
 ```
+
+## 📝 Creating Custom Tasks
+
+LLMRouter supports **custom task definitions** that allow you to add new task types with custom prompt templates and evaluation metrics. Custom tasks are automatically discovered and integrated into the data generation and evaluation pipeline.
+
+### Quick Start
+
+**1. Create a task formatter** (`custom_tasks/my_tasks.py`):
+```python
+from llmrouter.utils.prompting import register_prompt
+from llmrouter.prompts import load_prompt_template
+
+@register_prompt('my_task', default_metric='my_metric')
+def format_my_task_prompt(sample_data):
+    system_prompt = load_prompt_template("task_my_task")
+    user_query = f"Question: {sample_data.get('query', '')}"
+    return {"system": system_prompt, "user": user_query}
+```
+
+**2. Create a prompt template** (`custom_tasks/task_prompts/task_my_task.yaml`):
+```yaml
+template: |
+  You are an expert at [task description]. [Instructions].
+```
+
+**3. Register a custom metric** (optional):
+```python
+from llmrouter.evaluation import evaluation_metric
+
+@evaluation_metric('my_metric')
+def my_metric(prediction: str, ground_truth: str, **kwargs) -> float:
+    return 1.0 if prediction == ground_truth else 0.0
+```
+
+**4. Use your custom task:**
+```python
+import custom_tasks.my_tasks  # Import triggers registration
+
+from llmrouter.utils import generate_task_query
+from llmrouter.utils.evaluation import calculate_task_performance
+
+# Generate prompt
+prompt = generate_task_query('my_task', {'query': '...'})
+
+# Evaluate (metric automatically inferred from task)
+score = calculate_task_performance(
+    prediction="...", 
+    ground_truth="...", 
+    task_name="my_task"
+)
+```
+
+### Documentation
+
+For detailed guides on creating custom tasks:
+- 📖 **Complete Guide**: [custom_tasks/README.md](custom_tasks/README.md)
 
 <!-- ## Star History
 
