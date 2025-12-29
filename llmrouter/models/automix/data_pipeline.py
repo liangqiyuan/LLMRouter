@@ -49,31 +49,45 @@ def _env_or(default_value: str, *env_keys: str) -> str:
     return default_value
 
 
-# Global OpenAI client instance
-_openai_client = None
+# Global OpenAI client instance and cached params (simple like api_test.py)
+_cached_client = None
+_cached_base_url = None
+_cached_api_key = None
 
 
 def get_client(base_url="", api_key="", max_retries=2, timeout=60):
-    """Get or create OpenAI client with caching (like api_test.py)."""
-    global _openai_client
-    if _openai_client is None:
-        from openai import OpenAI
-        _openai_client = OpenAI(
+    """
+    Get or create OpenAI client with simple caching.
+    Recreates if api_key or base_url changes.
+    """
+    global _cached_client, _cached_base_url, _cached_api_key
+    from openai import OpenAI
+    
+    # Recreate client if params changed (important for different API keys)
+    if (_cached_client is None or 
+        _cached_base_url != base_url or 
+        _cached_api_key != api_key):
+        print(f"[DEBUG] get_client: Creating new client - "
+              f"base_url={base_url}, api_key={api_key[:10] if api_key else 'None'}..., "
+              f"cached_key={_cached_api_key[:10] if _cached_api_key else 'None'}...")
+        _cached_client = OpenAI(
             base_url=base_url,
             api_key=api_key,
             max_retries=max_retries,
             timeout=timeout
         )
-    return _openai_client
+        _cached_base_url = base_url
+        _cached_api_key = api_key
+    
+    return _cached_client
 
 
 def init_providers() -> None:
     """
     Initialize API providers (HuggingFace, OpenAI, etc.).
-
-    This function should be called before using any API-based functions.
+    Simplified - just handles HuggingFace login.
+    OpenAI client is created on-demand in get_llm_response_via_api.
     """
-    global _openai_client
     try:
         from huggingface_hub import login
 
@@ -83,34 +97,26 @@ def init_providers() -> None:
             login(token=hf_token)
         else:
             print("Warning: HF_TOKEN not set; skipping HuggingFace login")
-
+        
+        # Debug: Check API key availability
         api_key = _env_or(
             "",
             "OPENAI_API_KEY",
             "NVIDIA_API_KEY",
             "NVAPI_KEY",
+            "API_KEYS",
         )
-        if not api_key:
-            raise ValueError("Missing API key; set OPENAI_API_KEY/NVIDIA_API_KEY/NVAPI_KEY")
-        api_base = _env_or(
-            None,
-            "OPENAI_API_BASE",
-            "NVIDIA_API_BASE",
-        )
-        
-        if not api_base:
-            raise ValueError(
-                "API endpoint (api_base) not found. Please set OPENAI_API_BASE or "
-                "NVIDIA_API_BASE environment variable."
-            )
-
-        # Initialize OpenAI client with timeout and retry (like api_test.py)
-        _openai_client = get_client(
-            base_url=api_base,
-            api_key=api_key,
-            max_retries=2,
-            timeout=60
-        )
+        if api_key:
+            used_var = None
+            for var in ["OPENAI_API_KEY", "NVIDIA_API_KEY", "NVAPI_KEY", "API_KEYS"]:
+                if os.environ.get(var):
+                    used_var = var
+                    break
+            print(f"[DEBUG] init_providers: API key from {used_var}, "
+                  f"length={len(api_key)}, first_10={api_key[:10]}...")
+        else:
+            print("[WARNING] init_providers: No API key found in environment")
+            
     except ImportError:
         print("Warning: Some API providers could not be initialized")
     except Exception as e:
@@ -247,8 +253,8 @@ def get_llm_response_via_api(
     Args:
         prompt: Input prompt
         LLM_MODEL: Model name
-        base_url: API base URL
-        api_key: API key
+        base_url: API base URL (defaults to NVIDIA API if not provided)
+        api_key: API key (reads from env if not provided)
         TAU: Temperature
         TOP_P: Top-p sampling
         SEED: Random seed
@@ -260,7 +266,53 @@ def get_llm_response_via_api(
     Returns:
         Response content (str or list) and completion_tokens, or (None, 0) on failure
     """
+    # Get API key from env if not provided (like api_test.py)
+    if not api_key:
+        api_key = _env_or(
+            "",
+            "OPENAI_API_KEY",
+            "NVIDIA_API_KEY",
+            "NVAPI_KEY",
+            "API_KEYS",
+        )
+    
+    # Get base_url from env if not provided
+    if not base_url:
+        base_url = _env_or(
+            "https://integrate.api.nvidia.com/v1",
+            "OPENAI_API_BASE",
+            "NVIDIA_API_BASE",
+        )
+    
+    if not api_key:
+        print("[ERROR] API key not found. Set OPENAI_API_KEY/NVIDIA_API_KEY/NVAPI_KEY/API_KEYS")
+        return None, 0
+    
+    # Debug: Print API key info
+    print(f"[DEBUG] get_llm_response_via_api: Using api_key={api_key[:10]}...{api_key[-4:] if len(api_key) > 14 else ''}, "
+          f"base_url={base_url}, model={LLM_MODEL}")
+    
+    # Create client (simple like api_test.py)
     client = get_client(base_url=base_url, api_key=api_key)
+    
+    # Verify client was created with correct API key
+    global _cached_client, _cached_base_url, _cached_api_key
+    if _cached_api_key != api_key:
+        print(f"[ERROR] Client API key mismatch! Expected: {api_key[:10]}..., "
+              f"Got: {_cached_api_key[:10] if _cached_api_key else 'None'}...")
+        # Force recreate client
+        from openai import OpenAI
+        _cached_client = OpenAI(
+            base_url=base_url,
+            api_key=api_key,
+            max_retries=2,
+            timeout=60
+        )
+        _cached_base_url = base_url
+        _cached_api_key = api_key
+        print(f"[DEBUG] Force recreated client with correct API key")
+        client = _cached_client
+    
     completion = None
     trials = MAX_TRIALS
     
@@ -278,9 +330,16 @@ def get_llm_response_via_api(
             )
             break
         except Exception as e:
-            if "request timed out" in str(e).strip().lower():
+            error_msg = str(e)
+            print(f"[ERROR] API call failed for {LLM_MODEL}: {error_msg}")
+            # Check if it's an auth error and print API key info
+            if "403" in error_msg or "Authorization" in error_msg or "Forbidden" in error_msg:
+                print(f"[ERROR] Auth failed! Using api_key={api_key[:10]}...{api_key[-4:] if len(api_key) > 14 else ''}, "
+                      f"base_url={base_url}, model={LLM_MODEL}")
+            if "request timed out" in error_msg.strip().lower():
                 break
             if trials > 0:
+                print(f"Retrying... ({trials} trials remaining)")
                 time.sleep(TIME_GAP)
     
     if completion is None:
@@ -321,46 +380,19 @@ def call_openai_api(
     Returns:
         Single response string or list of responses
     """
-    global _openai_client
-
-    if _openai_client is None:
-        init_providers()
-
-    if _openai_client is None:
-        return None
-
-    # Get API credentials from global client
-    api_key = _env_or("", "OPENAI_API_KEY", "NVIDIA_API_KEY", "NVAPI_KEY")
-    api_base = _env_or(
-        None,
-        "OPENAI_API_BASE",
-        "NVIDIA_API_BASE",
-    )
-    
-    if not api_base:
-        raise ValueError(
-            "API endpoint (api_base) not found. Please set OPENAI_API_BASE or "
-            "NVIDIA_API_BASE environment variable."
-        )
-
-    if not api_key:
-        print("Error: Missing API key; set OPENAI_API_KEY/NVIDIA_API_KEY/NVAPI_KEY")
-        return None
-
-    # Use get_llm_response_via_api for retry mechanism
-    # Handle n > 1 by calling multiple times (like original implementation)
+    # Simple call - get_llm_response_via_api handles env vars internally (like api_test.py)
     all_responses = []
     orig_n = n
     
     while n > 0:
         current_batch_size = min(n, batch_size)
-        # Call get_llm_response_via_api for each batch
         for _ in range(current_batch_size):
+            # Pass empty strings - get_llm_response_via_api will read from env
             response, _ = get_llm_response_via_api(
                 prompt=prompt,
                 LLM_MODEL=engine_name,
-                base_url=api_base,
-                api_key=api_key,
+                base_url="",  # Empty - will read from env
+                api_key="",   # Empty - will read from env
                 TAU=temperature,
                 max_tokens=max_tokens,
                 stop=stop,
@@ -664,26 +696,54 @@ def run_verification(
         results = list(
             tqdm(executor.map(verifier_call, verifier_inputs), total=df.shape[0])
         )
+    
+    # Log None results for debugging
+    none_count = sum(1 for r in results if r is None)
+    if none_count > 0:
+        print(f"[DEBUG] run_verification: {none_count}/{len(results)} verification results are None")
+        print(f"[DEBUG] Engine: {engine_name}, Total samples: {len(results)}")
+        # Print first few None cases for debugging
+        for i, result in enumerate(results[:5]):
+            if result is None:
+                print(f"[DEBUG] Sample {i} returned None")
+    
     return results
 
 
-def compute_fraction_correct(lst: List[str]) -> float:
+def compute_fraction_correct(lst: Union[List[str], List[Union[str, None]], None]) -> float:
     """
     Compute fraction of verifications marked as correct.
 
     Args:
-        lst: List of verification responses
+        lst: List of verification responses (may contain None values)
 
     Returns:
         Fraction of correct verifications
     """
+    # Handle None or empty input
+    if lst is None or not lst:
+        print(f"[DEBUG] compute_fraction_correct: Received None or empty list")
+        return 0.0
+    
+    # Filter out None values and convert to strings
+    valid_items = [item for item in lst if item is not None]
+    none_count = len(lst) - len(valid_items)
+    if none_count > 0:
+        print(f"[DEBUG] compute_fraction_correct: Filtered out {none_count} None values from {len(lst)} items")
+    if not valid_items:
+        print(f"[DEBUG] compute_fraction_correct: No valid items after filtering, returning 0.0")
+        return 0.0
+    
+    # Convert items to strings if they aren't already
+    str_items = [str(item) if not isinstance(item, str) else item for item in valid_items]
+    
     total_valid = sum(
-        [1 for item in lst if "the ai generated answer is" in item.lower()]
+        [1 for item in str_items if "the ai generated answer is" in item.lower()]
     )
     if total_valid == 0:
-        return 0
+        return 0.0
     correct_count = sum(
-        [1 for item in lst if "the ai generated answer is correct" in item.lower()]
+        [1 for item in str_items if "the ai generated answer is correct" in item.lower()]
     )
     return correct_count / total_valid
 
@@ -835,6 +895,7 @@ def solve_queries(
 
     inputs = pd.read_json(data_path, lines=True, orient="records")
 
+
     results_13b = run_solver_job(
         inputs,
         prepare_row,
@@ -945,6 +1006,7 @@ def self_verify(
     init_providers()
     df = pd.read_json(input_path, lines=True, orient="records")
 
+
     ver_results = run_verification(
         df,
         ans_col=verifier_on_column,
@@ -1020,5 +1082,6 @@ def prepare_automix_data(
         )
     else:
         df_final = pd.read_json(step2_output, lines=True, orient="records")
+
 
     return df_final

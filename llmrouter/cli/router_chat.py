@@ -26,6 +26,7 @@ from llmrouter.models import (
     CausalLMRouter,
     SmallestLLM,
     LargestLLM,
+    AutomixRouter,
     GMTRouter,
 )
 from llmrouter.models.llmmultiroundrouter import LLMMultiRoundRouter
@@ -361,6 +362,7 @@ ROUTER_REGISTRY = {
     "largest_llm": LargestLLM,
     "llmmultiroundrouter": LLMMultiRoundRouter,
     "knnmultiroundrouter": KNNMultiRoundRouter,
+    "automixrouter": AutomixRouter,
 }
 
 # Add optional routers if available

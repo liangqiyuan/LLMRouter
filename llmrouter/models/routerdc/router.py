@@ -15,12 +15,30 @@ import yaml
 import copy
 import torch
 from typing import Any, Dict, List, Optional
-from transformers import AutoTokenizer, DebertaV2Model
+from transformers import AutoTokenizer, DebertaV2Model, DebertaV2Tokenizer
 from llmrouter.models.meta_router import MetaRouter
 from llmrouter.utils import call_api, generate_task_query, calculate_task_performance
 from .dcmodel import RouterModule
 from .dcdataset import DCDataset
 from .dcdata_utils import preprocess_data
+
+
+def _env_or(default_value: str, *env_keys: str) -> str:
+    """
+    Get environment variable or return default value.
+    
+    Args:
+        default_value: Default value if no env var is found
+        *env_keys: Environment variable keys to check
+    
+    Returns:
+        Environment variable value or default
+    """
+    for k in env_keys:
+        v = os.environ.get(k)
+        if v and len(v.strip()) > 0:
+            return v.strip()
+    return default_value
 
 
 class DCRouter(MetaRouter):
@@ -54,9 +72,13 @@ class DCRouter(MetaRouter):
         # Prepare data
         self._prepare_data()
 
+        # Remove HF_ENDPOINT to use official HuggingFace source (avoid mirror SSL issues)
+        os.environ.pop("HF_ENDPOINT", None)
+
         # Initialize tokenizer and backbone
         backbone_model = self.cfg['model_path']['backbone_model']
-        self.tokenizer = AutoTokenizer.from_pretrained(
+        # Use DebertaV2Tokenizer directly (requires sentencepiece)
+        self.tokenizer = DebertaV2Tokenizer.from_pretrained(
             backbone_model,
             truncation_side='left',
             padding=True
@@ -101,7 +123,19 @@ class DCRouter(MetaRouter):
         # Restore cfg since MetaRouter.__init__ resets it to {}
         self.cfg = saved_cfg
         
-        # Load metric weights if provided
+        # Load additional data using DataLoader (reuse MetaRouter's data loading logic)
+        # This ensures consistency with other routers and uses config-based paths
+        # DataLoader automatically handles:
+        # - Relative/absolute path resolution from config
+        # - File existence checking
+        # - Error handling with warnings
+        from llmrouter.data import DataLoader
+        loader = DataLoader(project_root=self.project_root)
+        # Load llm_data and llm_embedding_data from config
+        # (routing_data is handled separately by _prepare_data)
+        loader.load_data(self.cfg, self)
+        
+        # Load metric weights if provided in config
         weights_dict = self.cfg.get("metric", {}).get("weights", {})
         self.metric_weights = list(weights_dict.values())
 
@@ -113,22 +147,19 @@ class DCRouter(MetaRouter):
 
         hparam = self.cfg['hparam']
         n_clusters = hparam.get('n_clusters', 3)
-        max_test_samples = hparam.get('max_test_samples', 500)
 
         # Preprocess training data
         self.train_data_processed = preprocess_data(
             input_path=train_data_raw,
             add_cluster_id=True,
-            n_clusters=n_clusters,
-            max_samples=None
+            n_clusters=n_clusters
         )
 
         # Preprocess test data
         self.test_data_processed = preprocess_data(
             input_path=test_data_raw,
             add_cluster_id=False,
-            n_clusters=n_clusters,
-            max_samples=max_test_samples
+            n_clusters=n_clusters
         )
 
     def route(self, batch):
@@ -301,23 +332,30 @@ class DCRouter(MetaRouter):
                 # Get API endpoint and model name from llm_data if available
                 api_model_name = predicted_llm
                 api_endpoint = None
+                
+                # Priority 1: Get from llm_data (model-specific endpoint)
                 if hasattr(self, 'llm_data') and self.llm_data and predicted_llm in self.llm_data:
                     api_model_name = self.llm_data[predicted_llm].get("model", predicted_llm)
-                    # Get API endpoint from llm_data, fallback to router config
-                    api_endpoint = self.llm_data[predicted_llm].get(
-                        "api_endpoint",
-                        self.cfg.get("api_endpoint")
-                    )
+                    api_endpoint = self.llm_data[predicted_llm].get("api_endpoint")
                 
-                # If still no endpoint found, try router config
-                if api_endpoint is None:
+                # Priority 2: Get from router config
+                if not api_endpoint:
                     api_endpoint = self.cfg.get("api_endpoint")
+                
+                # Priority 3: Get from environment variables (like automix)
+                if not api_endpoint:
+                    api_endpoint = _env_or(
+                        "https://integrate.api.nvidia.com/v1",  # Default NVIDIA API
+                        "OPENAI_API_BASE",
+                        "NVIDIA_API_BASE",
+                    )
                 
                 # Validate that we have an endpoint
                 if not api_endpoint:
                     raise ValueError(
                         f"API endpoint not found for model '{predicted_llm}'. "
-                        f"Please specify 'api_endpoint' in llm_data JSON for this model or in router YAML config."
+                        f"Please specify 'api_endpoint' in llm_data JSON, router YAML config, "
+                        f"or set OPENAI_API_BASE/NVIDIA_API_BASE environment variable."
                     )
 
                 request = {
