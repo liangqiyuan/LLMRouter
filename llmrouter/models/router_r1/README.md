@@ -130,15 +130,15 @@ Router-R1 can be used via the `llmrouter` command-line interface:
 
 ```bash
 # Route a single query with agentic reasoning
-llmrouter infer --router router_r1 --config configs/model_config_test/router_r1.yaml \
+CUDA_VISIBLE_DEVICES=1 llmrouter infer --router router_r1 --config configs/model_config_test/router_r1.yaml \
     --query "Explain how transformers work in machine learning"
 
 # Route queries from a file
-llmrouter infer --router router_r1 --config configs/model_config_test/router_r1.yaml \
+CUDA_VISIBLE_DEVICES=1 llmrouter infer --router router_r1 --config configs/model_config_test/router_r1.yaml \
     --input queries.jsonl --output results.json
 
 # Route only (without calling LLM API)
-llmrouter infer --router router_r1 --config configs/model_config_test/router_r1.yaml \
+CUDA_VISIBLE_DEVICES=1 llmrouter infer --router router_r1 --config configs/model_config_test/router_r1.yaml \
     --query "What is quantum computing?" --route-only
 ```
 
