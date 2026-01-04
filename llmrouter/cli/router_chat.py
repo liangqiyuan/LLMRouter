@@ -725,6 +725,7 @@ def predict(
         # The router returns the model key, but we need the full model path for the API
         api_model_name = model_name  # Default to model_name
         api_endpoint = None
+        service = None
         
         if hasattr(router_instance, 'llm_data') and router_instance.llm_data:
             if model_name in router_instance.llm_data:
@@ -735,6 +736,8 @@ def predict(
                     "api_endpoint",
                     router_instance.cfg.get("api_endpoint")
                 )
+                # Get service field for service-specific API key selection
+                service = router_instance.llm_data[model_name].get("service")
             else:
                 # If model_name not found, try to find it by matching model field
                 for key, value in router_instance.llm_data.items():
@@ -745,6 +748,8 @@ def predict(
                             "api_endpoint",
                             router_instance.cfg.get("api_endpoint")
                         )
+                        # Get service field for service-specific API key selection
+                        service = value.get("service")
                         break
         
         # If still no endpoint found, try router config
@@ -768,6 +773,9 @@ def predict(
             "model_name": model_name,  # Keep original for router identification
             "api_name": api_model_name,  # Use full API model path
         }
+        # Add service field if available (for service-specific API key selection)
+        if service:
+            request["service"] = service
         
         result = call_api(request, max_tokens=1024, temperature=temperature)
         

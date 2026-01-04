@@ -382,6 +382,7 @@ def infer_query(
         # Get API endpoint and model name from llm_data if available
         api_model_name = model_name  # Default to model_name
         api_endpoint = None
+        service = None
         
         if hasattr(router_instance, 'llm_data') and router_instance.llm_data:
             if model_name in router_instance.llm_data:
@@ -392,6 +393,8 @@ def infer_query(
                     "api_endpoint",
                     router_instance.cfg.get("api_endpoint")
                 )
+                # Get service field for service-specific API key selection
+                service = router_instance.llm_data[model_name].get("service")
             else:
                 # If model_name not found, try to find it by matching model field
                 for key, value in router_instance.llm_data.items():
@@ -402,6 +405,8 @@ def infer_query(
                             "api_endpoint",
                             router_instance.cfg.get("api_endpoint")
                         )
+                        # Get service field for service-specific API key selection
+                        service = value.get("service")
                         break
         
         # If still no endpoint found, try router config
@@ -424,6 +429,9 @@ def infer_query(
             "model_name": model_name,  # Keep original for router identification
             "api_name": api_model_name,  # Use full API model path
         }
+        # Add service field if available (for service-specific API key selection)
+        if service:
+            request["service"] = service
 
         result = call_api(request, max_tokens=max_tokens, temperature=temperature)
 

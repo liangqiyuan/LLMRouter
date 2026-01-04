@@ -151,8 +151,10 @@ python llmrouter/data/generate_llm_embeddings.py \
 **Usage**:
 ```bash
 # Set API keys as environment variable
+# Service-specific dict format (recommended for multiple providers):
+export API_KEYS='{"NVIDIA": "key1,key2", "OpenAI": ["key3", "key4"]}'
+# OR legacy formats:
 export API_KEYS='["key1", "key2", ...]'  # JSON array format
-# OR
 export API_KEYS='key1,key2,...'  # Comma-separated
 
 # Run with sample config
@@ -431,6 +433,13 @@ python llmrouter/data/data_generation.py --config llmrouter/data/sample_config.y
 python llmrouter/data/generate_llm_embeddings.py --config llmrouter/data/sample_config.yaml
 
 # Step 3: API calling and evaluation (requires API_KEYS env var)
+# Service-specific dict format (recommended for multiple providers):
+export API_KEYS='{"NVIDIA": "nvidia-key-1,nvidia-key-2", "OpenAI": ["openai-key-1", "openai-key-2"]}'
+# OR legacy format:
+export API_KEYS='["your-key-1", "your-key-2"]'
+# Service-specific dict format (recommended):
+export API_KEYS='{"NVIDIA": "nvidia-key-1,nvidia-key-2", "OpenAI": ["openai-key-1", "openai-key-2"]}'
+# OR legacy format:
 export API_KEYS='["your-key-1", "your-key-2"]'
 python llmrouter/data/api_calling_evaluation.py --config llmrouter/data/sample_config.yaml --workers 100
 ```
@@ -473,12 +482,15 @@ data_generation:
 
 ### Required Environment Variables
 
-- `API_KEYS`: JSON array or comma-separated list of API keys for LiteLLM Router
+- `API_KEYS`: Service-specific dict, JSON array, or comma-separated list of API keys for LiteLLM Router
   ```bash
+  # Service-specific dict format (recommended for multiple providers):
+  export API_KEYS='{"NVIDIA": "key1,key2", "OpenAI": ["key3", "key4"]}'
+  # OR legacy formats:
   export API_KEYS='["key1", "key2"]'  # JSON format
-  # OR
   export API_KEYS='key1,key2'  # Comma-separated
   ```
+  **Note**: When using dict format, ensure the `service` field in your LLM candidate JSON matches the keys in `API_KEYS`.
 
 ### Configuration File Structure
 

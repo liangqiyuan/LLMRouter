@@ -41,20 +41,27 @@ def _count_tokens(text: Optional[str]) -> int:
     return len(_gpt2_tokenizer.encode(text))
 
 
-def _parse_api_keys(api_keys_env: Optional[str] = None) -> List[str]:
+def _parse_api_keys(api_keys_env: Optional[str] = None) -> Union[Dict[str, List[str]], List[str]]:
     """
     Parse API keys from environment variable.
     
-    Supports both single string and JSON list format:
+    Supports multiple formats:
+    - Dict format (service-specific): '{"NVIDIA": "key1,key2", "OpenAI": ["key3", "key4"]}'
+    - List format: '["key1", "key2", "key3"]'
     - Single key: "your-api-key"
-    - Multiple keys: '["key1", "key2", "key3"]'
+    - Comma-separated: "key1,key2,key3"
+    
+    Dict format values can be:
+    - String: "key1,key2" (comma-separated)
+    - List: ["key1", "key2"]
+    - Single string: "key1"
     
     Args:
         api_keys_env: Environment variable value for API_KEYS.
                      If None, reads from os.environ['API_KEYS']
     
     Returns:
-        List of API key strings
+        Dict[str, List[str]] if dict format detected, otherwise List[str]
     
     Raises:
         ValueError: If API_KEYS is not set or invalid
@@ -65,19 +72,50 @@ def _parse_api_keys(api_keys_env: Optional[str] = None) -> List[str]:
     if not api_keys_env:
         raise ValueError("API_KEYS environment variable is not set")
     
-    # Try to parse as JSON (list format)
+    # Try to parse as JSON
     try:
         parsed = json.loads(api_keys_env)
-        if isinstance(parsed, list):
+        
+        # Check if it's a dict (service-based format)
+        if isinstance(parsed, dict):
+            result_dict = {}
+            for service, keys in parsed.items():
+                if isinstance(keys, str):
+                    # Handle comma-separated string or single key
+                    if ',' in keys:
+                        # Allow empty strings for local providers
+                        result_dict[service] = [k.strip() for k in keys.split(',')]
+                    else:
+                        # Allow empty strings for local providers
+                        result_dict[service] = [keys.strip()]
+                elif isinstance(keys, list):
+                    # Handle list format - allow empty strings
+                    result_dict[service] = [str(k).strip() for k in keys]
+                else:
+                    # Skip invalid entries
+                    continue
+            # Only return dict if it has valid entries
+            if result_dict:
+                return result_dict
+        
+        # Check if it's a list (legacy format)
+        elif isinstance(parsed, list):
             return [str(key) for key in parsed if key]
+        
+        # Check if it's a string (single key in JSON)
         elif isinstance(parsed, str):
             return [parsed] if parsed else []
+            
     except (json.JSONDecodeError, TypeError):
         pass
     
-    # If not JSON, treat as single string
+    # If not JSON, treat as single string or comma-separated
     if isinstance(api_keys_env, str) and api_keys_env.strip():
-        return [api_keys_env.strip()]
+        # Check if comma-separated
+        if ',' in api_keys_env:
+            return [k.strip() for k in api_keys_env.split(',') if k.strip()]
+        else:
+            return [api_keys_env.strip()]
     
     raise ValueError(f"Invalid API_KEYS format: {api_keys_env}")
 
@@ -85,12 +123,16 @@ def _parse_api_keys(api_keys_env: Optional[str] = None) -> List[str]:
 def _get_api_key(
     api_endpoint: str,
     api_name: str,
-    api_keys: List[str],
+    api_keys: Union[Dict[str, List[str]], List[str]],
+    service: Optional[str] = None,
     is_batch: bool = False,
     request_index: int = 0
 ) -> str:
     """
     Get an API key using round-robin selection.
+    
+    For dict format (service-based), uses service-specific keys and round-robin.
+    For list format (legacy), uses all keys with round-robin.
     
     For single requests, uses a counter that increments per call.
     For batch requests, distributes requests across keys based on request_index.
@@ -98,30 +140,116 @@ def _get_api_key(
     Args:
         api_endpoint: API endpoint URL (for counter key)
         api_name: API model name (for counter key)
-        api_keys: List of available API keys
+        api_keys: Dict mapping service to keys, or List of keys (legacy format)
+        service: Service provider name (e.g., "NVIDIA", "OpenAI"). Required if api_keys is dict.
         is_batch: Whether this is part of a batch request
         request_index: Index of the request in a batch (only used for batch requests)
     
     Returns:
         Selected API key string
+    
+    Raises:
+        ValueError: If no keys available or service not found in dict
     """
-    if not api_keys:
-        raise ValueError("No API keys provided")
+    # Handle dict format (service-based)
+    if isinstance(api_keys, dict):
+        if not service:
+            raise ValueError(
+                "Service provider name is required when using dict format for API_KEYS. "
+                "Please provide 'service' field in the request dict or ensure the model's "
+                "llm_data includes a 'service' field matching a key in API_KEYS dict. "
+                f"Available services in API_KEYS: {list(api_keys.keys())}"
+            )
+        
+        # Normalize service name (case-insensitive)
+        service_lower = service.lower()
+        matching_service = None
+        for key in api_keys.keys():
+            if key.lower() == service_lower:
+                matching_service = key
+                break
+        
+        if matching_service is None:
+            raise ValueError(
+                f"Service '{service}' not found in API_KEYS dict. "
+                f"Available services: {list(api_keys.keys())}. "
+                "Please ensure the 'service' field in your request matches one of the keys in API_KEYS, "
+                "or add the service to your API_KEYS configuration."
+            )
+        
+        service_keys = api_keys[matching_service]
+        if not service_keys:
+            raise ValueError(f"No API keys available for service '{matching_service}' in API_KEYS dict")
+        
+        # Check if this is a local endpoint (localhost/127.0.0.1) with empty string key
+        # Allow empty string for local providers
+        is_local_endpoint = (
+            "localhost" in api_endpoint.lower() or 
+            "127.0.0.1" in api_endpoint or
+            api_endpoint.startswith("http://127.0.0.1") or
+            api_endpoint.startswith("http://localhost")
+        )
+        
+        # If all keys are empty strings and it's a local endpoint, allow it
+        if is_local_endpoint and all(key == "" for key in service_keys):
+            return ""
+        
+        # For non-local endpoints or mixed keys, validate that we have non-empty keys
+        if not any(key for key in service_keys):
+            raise ValueError(
+                f"No valid API keys available for service '{matching_service}' in API_KEYS dict. "
+                f"Empty strings are only allowed for localhost endpoints."
+            )
+        
+        # Filter out empty strings for non-local endpoints
+        if not is_local_endpoint:
+            service_keys = [key for key in service_keys if key]
+            if not service_keys:
+                raise ValueError(f"No valid API keys available for service '{matching_service}' in API_KEYS dict")
+        
+        # Use service-specific cache key for round-robin
+        cache_key = (matching_service, api_endpoint, api_name)
+        keys_to_use = service_keys
     
-    cache_key = (api_endpoint, api_name)
+    # Handle list format (legacy)
+    else:
+        if not api_keys:
+            raise ValueError("No API keys provided")
+        
+        # Check if this is a local endpoint with empty string key
+        is_local_endpoint = (
+            "localhost" in api_endpoint.lower() or 
+            "127.0.0.1" in api_endpoint or
+            api_endpoint.startswith("http://127.0.0.1") or
+            api_endpoint.startswith("http://localhost")
+        )
+        
+        # If all keys are empty strings and it's a local endpoint, allow it
+        if is_local_endpoint and all(key == "" for key in api_keys):
+            return ""
+        
+        # For non-local endpoints, filter out empty strings
+        if not is_local_endpoint:
+            api_keys = [key for key in api_keys if key]
+            if not api_keys:
+                raise ValueError("No valid API keys provided. Empty strings are only allowed for localhost endpoints.")
+        
+        cache_key = (api_endpoint, api_name)
+        keys_to_use = api_keys
     
+    # Perform round-robin selection
     if is_batch:
         # Batch request: distribute based on request_index
-        selected_index = request_index % len(api_keys)
+        selected_index = request_index % len(keys_to_use)
     else:
         # Single request: use counter and increment
         if cache_key not in _api_key_counters:
             _api_key_counters[cache_key] = 0
         
-        selected_index = _api_key_counters[cache_key] % len(api_keys)
-        _api_key_counters[cache_key] = (_api_key_counters[cache_key] + 1) % len(api_keys)
+        selected_index = _api_key_counters[cache_key] % len(keys_to_use)
+        _api_key_counters[cache_key] = (_api_key_counters[cache_key] + 1) % len(keys_to_use)
     
-    return api_keys[selected_index]
+    return keys_to_use[selected_index]
 
 
 def call_api(
@@ -146,6 +274,8 @@ def call_api(
             - query (str): The query/prompt to send
             - model_name (str): Model identifier name (not used for API call)
             - api_name (str): Actual API model name/path (e.g., "qwen/qwen2.5-7b-instruct")
+            - service (str, optional): Service provider name (e.g., "NVIDIA", "OpenAI")
+                                      Used for service-specific API key selection when API_KEYS is dict format
             - system_prompt (str, optional): System prompt for task-specific instructions
         api_keys_env: Optional override for API_KEYS env var (for testing)
         max_tokens: Maximum tokens to generate
@@ -208,10 +338,13 @@ def call_api(
         try:
             # Select API key using round-robin
             # For batch requests, use request index; for single requests, use counter
+            # Extract service from request if available (for dict-based API key selection)
+            service = req.get('service')
             selected_api_key = _get_api_key(
                 api_endpoint=req['api_endpoint'],
                 api_name=req['api_name'],
                 api_keys=api_keys,
+                service=service,
                 is_batch=not is_single,
                 request_index=idx
             )
@@ -226,10 +359,25 @@ def call_api(
                 messages.append({"role": "system", "content": req['system_prompt']})
             messages.append({"role": "user", "content": req['query']})
 
+            # LiteLLM requires a non-empty API key even for local endpoints
+            # Use a dummy value if empty string was provided for localhost
+            api_key_for_litellm = selected_api_key
+            if not api_key_for_litellm:
+                # Check if this is a local endpoint
+                is_local = (
+                    "localhost" in req['api_endpoint'].lower() or 
+                    "127.0.0.1" in req['api_endpoint'] or
+                    req['api_endpoint'].startswith("http://127.0.0.1") or
+                    req['api_endpoint'].startswith("http://localhost")
+                )
+                if is_local:
+                    # Use a dummy value for local endpoints (LiteLLM requirement)
+                    api_key_for_litellm = "local"
+
             response = completion(
                 model=model_for_litellm,
                 messages=messages,
-                api_key=selected_api_key,
+                api_key=api_key_for_litellm,
                 api_base=req['api_endpoint'],
                 max_tokens=max_tokens,
                 temperature=temperature,

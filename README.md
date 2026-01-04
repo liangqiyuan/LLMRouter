@@ -123,7 +123,43 @@ pip install llmrouter-lib
 
 LLMRouter requires API keys to make LLM API calls for inference, chat, and data generation. Set the `API_KEYS` environment variable using one of the following formats:
 
-**JSON Array Format** (recommended for multiple keys):
+#### **Service-Specific Dict Format** (recommended for multiple providers)
+
+Use this format when you have models from different service providers (e.g., NVIDIA, OpenAI, Anthropic) and want to use different API keys for each provider:
+
+```bash
+export API_KEYS='{"NVIDIA": "nvidia-key-1,nvidia-key-2", "OpenAI": ["openai-key-1", "openai-key-2"], "Anthropic": "anthropic-key-1"}'
+```
+
+**Dict Format Details:**
+- **Keys**: Service provider names (must match the `service` field in your LLM candidate JSON)
+- **Values**: Can be:
+  - Comma-separated string: `"key1,key2,key3"`
+  - JSON array: `["key1", "key2", "key3"]`
+  - Single string: `"key1"`
+- **Service Matching**: The system automatically matches the `service` field from your LLM candidate JSON to select the appropriate API keys
+- **Round-Robin**: Each service maintains its own round-robin counter for load balancing
+- **Error Handling**: If a service is not found in the dict, a clear error message will be raised with available services listed
+
+**Example LLM Candidate JSON with service field:**
+```json
+{
+  "qwen2.5-7b-instruct": {
+    "service": "NVIDIA",
+    "model": "qwen/qwen2.5-7b-instruct",
+    "api_endpoint": "https://integrate.api.nvidia.com/v1"
+  },
+  "gpt-4": {
+    "service": "OpenAI",
+    "model": "gpt-4",
+    "api_endpoint": "https://api.openai.com/v1"
+  }
+}
+```
+
+#### **Legacy Formats** (for single provider or backward compatibility)
+
+**JSON Array Format** (for multiple keys from same provider):
 ```bash
 export API_KEYS='["your-key-1", "your-key-2", "your-key-3"]'
 ```
@@ -138,9 +174,10 @@ export API_KEYS='key1,key2,key3'
 export API_KEYS='your-api-key'
 ```
 
-**Note**: 
+**Notes**: 
 - API keys are used for **inference**, **chat interface**, and **data generation** (Step 3 of the pipeline)
 - Multiple keys enable automatic load balancing across API calls
+- When using **dict format**, ensure the `service` field in your LLM candidate JSON matches the keys in your `API_KEYS` dict
 - The environment variable must be set before running inference, chat, or data generation commands
 - For persistent setup, add the export command to your shell profile (e.g., `~/.bashrc` or `~/.zshrc`)
 
@@ -176,6 +213,32 @@ api_endpoint: 'https://integrate.api.nvidia.com/v1'  # Fallback for all models
 **Benefits**: Different models can use different providers; easy migration; backward compatible with router configs.
 
 For details, see [Data Generation Pipeline documentation](llmrouter/data/README.md#llm-data-json-default_llmjson).
+
+### 🖥️ Using Local LLM Models
+
+LLMRouter supports locally hosted LLM inference servers that provide OpenAI-compatible APIs (e.g., Ollama, vLLM, SGLang). For local providers, you can use an empty string `""` as the API key value - the system automatically detects localhost endpoints and handles authentication accordingly.
+
+**Example with Ollama:**
+
+```bash
+export API_KEYS='{"Ollama": ""}'
+```
+
+```json
+{
+  "gemma3": {
+    "size": "3B",
+    "feature": "Gemma 3B model hosted locally via Ollama",
+    "input_price": 0.0,
+    "output_price": 0.0,
+    "model": "gemma3",
+    "service": "Ollama",
+    "api_endpoint": "http://localhost:11434/v1"
+  }
+}
+```
+
+**Important**: Use the `/v1` endpoint (OpenAI-compatible), not the native API endpoints. Empty strings are automatically detected for localhost endpoints (`localhost` or `127.0.0.1`).
 
 ### 📊 Preparing Training Data
 
