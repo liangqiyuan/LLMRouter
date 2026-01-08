@@ -4,7 +4,7 @@ This directory contains scripts to convert the Charades-Ego dataset into the LLM
 
 ## 1. Data Download
 
-You need to download the dataset from the official S3 bucket.
+You can find download links and dataset details on the [Charades-Ego website](https://prior.allenai.org/projects/charades-ego).
 
 **Archives:**
 - **Annotations:** `https://ai2-public-datasets.s3-us-west-2.amazonaws.com/charades/CharadesEgo.zip`
