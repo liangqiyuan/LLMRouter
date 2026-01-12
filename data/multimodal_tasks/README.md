@@ -6,13 +6,13 @@ LLMRouter supports advanced multimodal reasoning by integrating Vision-Language 
 
 We currently support **5 multimodal tasks** across **3 diverse datasets**:
 
-### 1. Geometry3K ( Geometry Problem Solving)
+### 1. Geometry3K (Geometry Problem Solving)
 
 <table>
   <tr>
     <td width="60%" valign="top">
       <ul>
-        <li><b>Task</b>: Find x.</li>
+        <li><b>Prompt</b>: Find x.</li>
         <li><b>VLM Description</b>:
           <blockquote>
             "Here's a description of the geometry diagram:
@@ -39,7 +39,7 @@ We currently support **5 multimodal tasks** across **3 diverse datasets**:
   <tr>
     <td width="60%" valign="top">
       <ul>
-        <li><b>Task</b>: When a spring does work on an object, we cannot find the work by simply multiplying the spring force by the object's displacement. The reason is that there is no one value for the force-it changes. However, we can split the displacement up into an infinite number of tiny parts and then approximate the force in each as being constant. Integration sums the work done in all those parts. Here we use the generic result of the integration.
+        <li><b>Prompt</b>: When a spring does work on an object, we cannot find the work by simply multiplying the spring force by the object's displacement. The reason is that there is no one value for the force-it changes. However, we can split the displacement up into an infinite number of tiny parts and then approximate the force in each as being constant. Integration sums the work done in all those parts. Here we use the generic result of the integration.
         <br><br>
         In Figure, a cumin canister of mass $m=0.40 \mathrm{~kg}$ slides across a horizontal frictionless counter with speed $v=0.50 \mathrm{~m} / \mathrm{s}$. It then runs into and compresses a spring of spring constant $k=750 \mathrm{~N} / \mathrm{m}$. When the canister is momentarily stopped by the spring, by what distance $d$ is the spring compressed?
         </li>
