@@ -42,3 +42,7 @@ To use the template:
 3.  Select **`llm_router_template.json`**.
 
 This will load a complete workflow connected and ready to run.
+
+<div align="center">
+  <img src="assets/comfyui.png" alt="LLMRouter Template in ComfyUI" width="800">
+</div>
